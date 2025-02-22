@@ -49,17 +49,22 @@ class RAGASVertexAIEmbeddings(VertexAIEmbeddings):
 class RagasEvaluator(BaseEvaluator):
     """Evaluator using the Ragas library."""
 
-    def __init__(self, metrics: List[str] = None, threshold: float = None):
+    def __init__(self, metrics: List[str] = None, threshold: float = None, llm=None):
         super().__init__(metrics, threshold)
         self.validate_metrics(self.metrics)
         
-        # Initialize VertexAI models using config
-        self.llm = VertexAI(
-            model_name=VERTEX_MODELS["llm"]["name"],
-            project=PROJECT_ID,
-            location=LOCATION,
-            **VERTEX_MODELS["llm"].get("config", {})
-        )
+        # Use provided LLM or create default from config
+        if llm is not None:
+            self.llm = LangchainLLMWrapper(llm)
+        else:
+            self.llm = LangchainLLMWrapper(VertexAI(
+                model_name=VERTEX_MODELS["llm"]["name"],
+                project=PROJECT_ID,
+                location=LOCATION,
+                **VERTEX_MODELS["llm"].get("config", {})
+            ))
+
+        # Initialize embeddings
         self.embeddings = RAGASVertexAIEmbeddings(
             model_name=VERTEX_MODELS["embeddings"]["name"],
             project=PROJECT_ID,
@@ -71,7 +76,7 @@ class RagasEvaluator(BaseEvaluator):
         for metric_name in self.metrics:
             metric = _SUPPORTED_METRICS[metric_name]
             # Set LLM for the metric
-            metric.__setattr__("llm", LangchainLLMWrapper(self.llm))
+            metric.__setattr__("llm", self.llm)
             # Set embeddings if the metric needs them
             if hasattr(metric, "embeddings"):
                 metric.__setattr__("embeddings", self.embeddings)

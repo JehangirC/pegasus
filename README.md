@@ -91,6 +91,7 @@ The evaluator is configured via `config.json`. Here's an explanation of the conf
 
 ```python
 from pegasus import LLMEvaluator
+from pegasus.llms.vertexai_llm import VertexAILLM
 import pandas as pd
 
 # Create your evaluation data
@@ -102,8 +103,20 @@ data = {
 }
 df = pd.DataFrame(data)
 
-# Initialize evaluator
-evaluator = LLMEvaluator(evaluator_type="ragas")  # or "deepeval"
+# Create a custom LLM (optional for Ragas, required for DeepEval)
+custom_llm = VertexAILLM(
+    model_name="gemini-1.5-flash",
+    project_id="your-project",
+    location="europe-west2"
+)
+
+# Initialize evaluator with Ragas (will use config defaults if no LLM provided)
+evaluator = LLMEvaluator(evaluator_type="ragas")
+# Or provide a custom LLM
+evaluator = LLMEvaluator(evaluator_type="ragas", llm=custom_llm)
+
+# Initialize evaluator with DeepEval (requires LLM)
+evaluator = LLMEvaluator(evaluator_type="deepeval", llm=custom_llm)
 
 # Run evaluation
 results = evaluator.evaluate(df)
@@ -111,12 +124,33 @@ results = evaluator.evaluate(df)
 
 ### Using Custom Metrics
 
+You can override the default metrics from the config by passing either a single metric or a list of metrics:
+
 ```python
+# Using a single metric
 evaluator = LLMEvaluator(
     evaluator_type="ragas",
-    metrics=["answer_relevancy", "faithfulness"]
+    metrics="answer_relevancy",
+    llm=custom_llm  # optional for Ragas
+)
+
+# Using multiple metrics
+evaluator = LLMEvaluator(
+    evaluator_type="deepeval",
+    metrics=["answer_relevancy", "faithfulness"],
+    llm=custom_llm  # required for DeepEval
+)
+
+# With other parameters
+evaluator = LLMEvaluator(
+    evaluator_type="ragas",
+    metrics=["answer_relevancy", "context_precision"],
+    threshold=0.7,
+    llm=custom_llm  # optional
 )
 ```
+
+The specified metrics will completely replace the default metrics defined in your configuration. Make sure to only use metrics that are supported by your chosen evaluator type (see Available Metrics section below).
 
 ### Using Custom LLM
 

@@ -26,18 +26,24 @@ console = Console()
 class LLMEvaluator:
     """Main class for evaluating LLM outputs."""
     
-    def __init__(self, evaluator_type: str = "ragas", metrics: List[str] = None, threshold: float = 0.5, llm=None):
+    def __init__(self, evaluator_type: str = "ragas", metrics: Union[str, List[str]] = None, threshold: float = 0.5, llm=None):
         """Initialize the evaluator.
         
         Args:
             evaluator_type: Type of evaluator to use ("ragas" or "deepeval")
-            metrics: List of metrics to evaluate. If None, uses default metrics
+            metrics: Single metric or list of metrics to evaluate. If None, uses default metrics
             threshold: Score threshold for passing evaluation
-            llm: Language model to use for evaluation (required for DeepEval)
+            llm: Language model to use for evaluation (required for DeepEval, optional for Ragas)
         """
+        # Convert single metric to list
+        if isinstance(metrics, str):
+            metrics = [metrics]
+            
         if evaluator_type == "ragas":
-            self.evaluator = RagasEvaluator(metrics=metrics, threshold=threshold)
+            self.evaluator = RagasEvaluator(metrics=metrics, threshold=threshold, llm=llm)
         elif evaluator_type == "deepeval":
+            if llm is None:
+                raise ValueError("DeepEval requires an LLM instance for evaluation")
             self.evaluator = DeepEvalEvaluator(metrics=metrics, threshold=threshold, llm=llm)
         else:
             raise ValueError(f"Unsupported evaluator type: {evaluator_type}")

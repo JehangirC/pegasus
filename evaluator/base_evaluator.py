@@ -31,8 +31,11 @@ class EvaluationInput(BaseModel): # Pydantic classes for type checking input and
 class BaseEvaluator(ABC):
     """Abstract base class for all evaluators."""
     
-    def __init__(self, metrics: List[str] = None, threshold: float = 0.5):
+    def __init__(self, metrics: Union[str, List[str]] = None, threshold: float = 0.5):
         self.threshold = threshold
+        # Convert single metric to list
+        if isinstance(metrics, str):
+            metrics = [metrics]
         self.metrics = metrics or self.default_metrics()
         
     @abstractmethod

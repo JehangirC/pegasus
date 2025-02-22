@@ -36,6 +36,10 @@ def test_deepeval_evaluator_initialization(mock_llm):
     evaluator = DeepEvalEvaluator(metrics=custom_metrics, llm=mock_llm)
     assert evaluator.metrics == custom_metrics
 
+def test_deepeval_evaluator_single_metric(mock_llm):
+    evaluator = DeepEvalEvaluator(metrics="answer_relevancy", llm=mock_llm)
+    assert evaluator.metrics == ["answer_relevancy"]
+
 def test_deepeval_evaluator_invalid_metric(mock_llm):
     with pytest.raises(ValueError):
         DeepEvalEvaluator(metrics=["invalid_metric"], llm=mock_llm)

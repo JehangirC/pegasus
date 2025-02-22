@@ -4,6 +4,13 @@ import pandas as pd
 from evaluator.ragas_evaluator import RagasEvaluator
 from evaluator.base_evaluator import EvaluationResult
 
+class MockLLM:
+    def invoke(self, prompt: str) -> str:
+        return "This is a mock response"
+    
+    async def ainvoke(self, prompt: str) -> str:
+        return "This is a mock async response"
+
 @pytest.fixture
 def sample_df():
     return pd.DataFrame({
@@ -14,16 +21,29 @@ def sample_df():
     })
 
 @pytest.fixture
+def mock_llm():
+    return MockLLM()
+
+@pytest.fixture
 def ragas_evaluator():
+    # Test default behavior without LLM
     return RagasEvaluator()
 
 def test_ragas_evaluator_initialization():
+    # Test without LLM (default config)
     evaluator = RagasEvaluator()
     assert evaluator.metrics == evaluator.default_metrics()
     
+    # Test with custom metrics, no LLM
     custom_metrics = ["answer_relevancy", "faithfulness"]
     evaluator = RagasEvaluator(metrics=custom_metrics)
     assert evaluator.metrics == custom_metrics
+    
+    # Test with custom LLM
+    mock_llm = MockLLM()
+    evaluator = RagasEvaluator(llm=mock_llm)
+    assert evaluator.metrics == evaluator.default_metrics()
+    assert evaluator.llm is not None
 
 def test_ragas_evaluator_invalid_metric():
     with pytest.raises(ValueError):
@@ -49,3 +69,7 @@ def test_ragas_supported_metrics(ragas_evaluator):
     assert len(supported) > 0
     assert "answer_relevancy" in supported
     assert "faithfulness" in supported
+
+def test_ragas_evaluator_single_metric():
+    evaluator = RagasEvaluator(metrics="answer_relevancy")
+    assert evaluator.metrics == ["answer_relevancy"]
