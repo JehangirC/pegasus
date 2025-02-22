@@ -224,12 +224,7 @@ pytest tests/
 4. Ensure all tests pass
 5. Submit a pull request
 
-## License
-
-[Your chosen license]
-
 ## Acknowledgments
 
 - RAGAS evaluation framework
 - DeepEval framework
-- Google Cloud Vertex AI team
