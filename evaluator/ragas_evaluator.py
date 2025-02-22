@@ -1,92 +1,120 @@
-from typing import List, Dict, Any
+"""Evaluator implementation using Ragas metrics."""
+from typing import Dict, List, Any
+import pandas as pd
 from ragas import evaluate
 from ragas.metrics import (
     answer_relevancy,
     faithfulness,
     context_recall,
     context_precision,
-    context_relevancy,
-    answer_correctness,
-    answer_similarity,
-)  # Import specific metrics
+    answer_correctness
+)
 from datasets import Dataset
-import pandas as pd
-from .base_evaluator import BaseEvaluator, EvaluationInput, EvaluationResult
+from ragas.llms.base import LangchainLLMWrapper
+from langchain_google_vertexai import VertexAI, VertexAIEmbeddings
+from .base_evaluator import BaseEvaluator, EvaluationResult
+from config import (
+    PROJECT_ID, 
+    LOCATION, 
+    VERTEX_MODELS, 
+    DEFAULT_RAGAS_METRICS,
+    get_metric_threshold
+)
 
-_SUPPORTED_RAGAS_METRICS = {  # Define supported metrics in a structured way
-  "answer_relevancy": answer_relevancy,
-  "faithfulness": faithfulness,
-  "context_recall": context_recall,
-  "context_precision": context_precision,
-"context_relevancy": context_relevancy,
-"answer_correctness": answer_correctness,
-"answer_similarity": answer_similarity,
+_SUPPORTED_METRICS = {
+    "answer_relevancy": answer_relevancy,
+    "faithfulness": faithfulness,
+    "context_recall": context_recall,
+    "context_precision": context_precision,
+    "answer_correctness": answer_correctness
 }
+
+class RAGASVertexAIEmbeddings(VertexAIEmbeddings):
+    """Wrapper for RAGAS to work with VertexAI embeddings"""
+    async def embed_text(self, text: str) -> list[float]:
+        """Embeds a text for semantics similarity"""
+        return self.embed_documents([text])[0]
+
+    def set_run_config(self, run_config):
+        """Sets the run configuration for embeddings.
+        
+        Args:
+            run_config: Configuration provided by RAGAS framework
+        """
+        pass  # VertexAI embeddings don't need runtime configuration
+
 class RagasEvaluator(BaseEvaluator):
-        """Evaluator using the Ragas library."""
+    """Evaluator using the Ragas library."""
 
-        def __init__(self, metrics: List[str] = None):
-            """
-            Initializes the RagasEvaluator.
+    def __init__(self, metrics: List[str] = None, threshold: float = None):
+        super().__init__(metrics, threshold)
+        self.validate_metrics(self.metrics)
+        
+        # Initialize VertexAI models using config
+        self.llm = VertexAI(
+            model_name=VERTEX_MODELS["llm"]["name"],
+            project=PROJECT_ID,
+            location=LOCATION,
+            **VERTEX_MODELS["llm"].get("config", {})
+        )
+        self.embeddings = RAGASVertexAIEmbeddings(
+            model_name=VERTEX_MODELS["embeddings"]["name"],
+            project=PROJECT_ID,
+            location=LOCATION
+        )
+        
+        # Initialize metrics with VertexAI
+        self.ragas_metrics = []
+        for metric_name in self.metrics:
+            metric = _SUPPORTED_METRICS[metric_name]
+            # Set LLM for the metric
+            metric.__setattr__("llm", LangchainLLMWrapper(self.llm))
+            # Set embeddings if the metric needs them
+            if hasattr(metric, "embeddings"):
+                metric.__setattr__("embeddings", self.embeddings)
+            self.ragas_metrics.append(metric)
 
-            Args:
-                metrics: A list of metric names to use.  If None, uses a default set.
-                         Must be a subset of the keys in _SUPPORTED_RAGAS_METRICS.
-            """
-            super().__init__()
-            if metrics is None:
-                metrics = ["answer_relevancy", "faithfulness"]  # A reasonable default set
+    def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
+        """Evaluates inputs using Ragas metrics."""
+        # Convert pandas DataFrame to Ragas Dataset format
+        dataset_dict = {
+            "question": df["question"].tolist(),
+            "answer": df["answer"].tolist(),
+            "contexts": [[ctx] if isinstance(ctx, str) else ctx for ctx in df["context"].tolist()],
+            "ground_truth": df["expected_answer"].tolist() if "expected_answer" in df.columns else [""] * len(df)
+        }
+        
+        dataset = Dataset.from_dict(dataset_dict)
+        
+        # Run Ragas evaluation
+        results = evaluate(dataset, metrics=self.ragas_metrics)
+        results_df = results.to_pandas()
 
-            self.metrics = self._validate_metrics(metrics)
-
-
-        def _validate_metrics(self, metrics: List[str]):
-            """Validates and returns the Ragas metric objects."""
-            validated_metrics = []
-            for metric_name in metrics:
-                if metric_name not in _SUPPORTED_RAGAS_METRICS:
-                    raise ValueError(
-                        f"Invalid Ragas metric: {metric_name}.  "
-                        f"Supported metrics: {list(_SUPPORTED_RAGAS_METRICS.keys())}"
+        # Convert results to EvaluationResult format
+        evaluation_results = {}
+        for idx in range(len(df)):
+            row_results = []
+            for metric in self.metrics:
+                score = float(results_df.iloc[idx][metric])
+                threshold = get_metric_threshold(metric, "ragas")
+                row_results.append(
+                    EvaluationResult(
+                        metric_name=metric,
+                        score=score,
+                        passed=score >= threshold,
+                        threshold=threshold,
+                        explanation=f"Ragas {metric} score: {score:.3f}",
+                        reason=f"Score {'above' if score >= threshold else 'below'} threshold of {threshold}"
                     )
-                validated_metrics.append(_SUPPORTED_RAGAS_METRICS[metric_name])
-            return validated_metrics
+                )
+            evaluation_results[idx] = row_results
 
-        def evaluate(self, inputs: List[EvaluationInput]) -> List[Dict[str, Any]]:
-            """Evaluates a list of inputs using Ragas."""
+        return evaluation_results
 
-            # Convert EvaluationInputs to a format Ragas expects (Dataset).
-            # This is crucial for correct data handling.
+    def default_metrics(self) -> List[str]:
+        """Returns default metrics for Ragas evaluation."""
+        return DEFAULT_RAGAS_METRICS
 
-            data = {
-              "question": [],
-              "answer": [],
-              "contexts": [],
-              "ground_truths": []
-            }
-
-            for inp in inputs:
-                data["question"].append(inp.question)
-                data["answer"].append(inp.answer)
-                data["contexts"].append(inp.context if isinstance(inp.context, list) else [inp.context]) #Ragas needs a list of strings
-                data["ground_truths"].append(inp.expected_answer if inp.expected_answer else [])
-
-            # Convert to a Dataset
-            dataset = Dataset.from_pandas(pd.DataFrame(data))
-
-            # Run Ragas evaluation
-            result = evaluate(dataset, metrics=self.metrics)
-
-            # Convert the Ragas result (which is a Dataset) to a list of dictionaries.
-            results_list = []
-            df = result.to_pandas()
-            for i in range(len(inputs)):
-                res_dict = {}
-                for metric in self.metrics:
-                  res_dict[metric.name] = df.iloc[i][metric.name]
-                results_list.append(res_dict)
-
-            return results_list
-
-        def supported_metrics(self) -> List[str]:
-          return list(_SUPPORTED_RAGAS_METRICS.keys())
+    def supported_metrics(self) -> List[str]:
+        """Returns all supported Ragas metrics."""
+        return list(_SUPPORTED_METRICS.keys())

@@ -1,0 +1,65 @@
+{
+    "vertex_ai": {
+        "project_id": null,
+        "location": "europe-west2",
+        "models": {
+            "llm": {
+                "name": "gemini-1.5-flash",
+                "config": {
+                    "temperature": 0.0,
+                    "top_k": 1
+                }
+            },
+            "embeddings": {
+                "name": "textembedding-gecko@003"
+            }
+        }
+    },
+    "metrics": {
+        "ragas": {
+            "default": [
+                "answer_relevancy",
+                "faithfulness",
+                "context_recall",
+                "context_precision",
+                "answer_correctness"
+            ],
+            "thresholds": {
+                "answer_relevancy": 0.7,
+                "faithfulness": 0.7,
+                "context_recall": 0.7,
+                "context_precision": 0.7,
+                "answer_correctness": 0.7,
+                "default": 0.5
+            }
+        },
+        "deepeval": {
+            "default": [
+                "answer_relevancy",
+                "faithfulness",
+                "contextual_precision",
+                "contextual_recall",
+                "bias",
+                "toxicity"
+            ],
+            "thresholds": {
+                "answer_relevancy": 0.7,
+                "faithfulness": 0.7,
+                "contextual_precision": 0.7,
+                "contextual_recall": 0.7,
+                "bias": 0.7,
+                "toxicity": 0.7,
+                "default": 0.5
+            }
+        }
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    },
+    "error_handling": {
+        "max_retries": 3,
+        "retry_delay": 1.0,
+        "timeout": 30
+    }
+}

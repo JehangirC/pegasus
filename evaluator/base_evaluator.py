@@ -1,11 +1,17 @@
+"""Base evaluator class for LLM evaluation."""
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Union
 from pydantic import BaseModel, field_validator
+from datetime import datetime
+import pandas as pd
 
 class EvaluationResult(BaseModel):
     metric_name: str
     score: float
-    #  Add other relevant fields, like explanations, supporting data, etc.
+    explanation: str = ""
+    reason: str = ""
+    passed: bool = False
+    threshold: float = 0.5
 
 class EvaluationInput(BaseModel): # Pydantic classes for type checking input and output
     question: str
@@ -24,22 +30,42 @@ class EvaluationInput(BaseModel): # Pydantic classes for type checking input and
 
 class BaseEvaluator(ABC):
     """Abstract base class for all evaluators."""
-
+    
+    def __init__(self, metrics: List[str] = None, threshold: float = 0.5):
+        self.threshold = threshold
+        self.metrics = metrics or self.default_metrics()
+        
     @abstractmethod
-    def evaluate(self, inputs: List[EvaluationInput]) -> List[Dict[str,Any]]:
-        """
-        Evaluates a list of inputs and returns a list of scores.
+    def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
+        """Evaluates a dataframe of inputs and returns scores.
 
         Args:
-            inputs: A list of EvaluationInput objects.
+            df: Pandas DataFrame with columns:
+                - question: The input question
+                - answer: The model's answer
+                - context: The context provided (optional)
+                - expected_answer: The expected answer (optional)
 
         Returns:
-            A list of dictionaries, where each dictionary contains
-            the evaluation results for a single input. The exact structure
-            will depend on the specific evaluator.
+            Dictionary mapping each example to a list of evaluation results
         """
         pass
 
     @abstractmethod
+    def default_metrics(self) -> List[str]:
+        """Returns the default list of metrics for this evaluator."""
+        pass
+
+    @abstractmethod
     def supported_metrics(self) -> List[str]:
-      """return the list of metrics that can be computed by evaluator"""
+        """Returns all supported metrics for this evaluator."""
+        pass
+
+    def validate_metrics(self, metrics: List[str]) -> None:
+        """Validates that the requested metrics are supported."""
+        supported = self.supported_metrics()
+        for metric in metrics:
+            if metric not in supported:
+                raise ValueError(
+                    f"Metric '{metric}' not supported. Supported metrics: {supported}"
+                )

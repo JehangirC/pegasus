@@ -1,0 +1,201 @@
+# Pegasus
+
+A powerful evaluation framework for Large Language Models using RAGAS and DeepEval metrics, with native support for Google Cloud's Vertex AI.
+
+## Features
+
+- Dual evaluation frameworks:
+  - RAGAS metrics for comprehensive RAG evaluation
+  - DeepEval metrics for general LLM evaluation
+- Native Google Cloud Vertex AI integration
+- Configurable via JSON
+- Support for all major evaluation metrics
+- Pandas DataFrame interface for easy data handling
+
+## Prerequisites
+
+- Python 3.8+
+- Google Cloud account with Vertex AI API enabled
+- Google Cloud credentials configured
+- Access to Vertex AI models (Gemini and Gecko)
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd pegasus
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Set up Google Cloud credentials:
+```bash
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/credentials.json"
+```
+
+## Configuration
+
+The evaluator is configured via `config.json`. Here's an explanation of the configuration options:
+
+```json
+{
+    "vertex_ai": {
+        "project_id": null,  // Will use GOOGLE_CLOUD_PROJECT env var if null
+        "location": "europe-west2",  // Google Cloud region
+        "models": {
+            "llm": {
+                "name": "gemini-1.5-flash",  // Model for evaluation
+                "config": {
+                    "temperature": 0.0,
+                    "top_k": 1
+                }
+            },
+            "embeddings": {
+                "name": "textembedding-gecko@003"  // Embedding model
+            }
+        }
+    },
+    "metrics": {
+        "ragas": {
+            "default": [
+                "answer_relevancy",     // Measures how relevant the answer is
+                "faithfulness",         // Checks if answer is supported by context
+                "context_recall",       // Measures information capture
+                "context_precision",    // Measures precision of used context
+                "answer_correctness",   // Evaluates factual accuracy
+                "answer_similarity"     // Compares to expected answer
+            ]
+        },
+        "deepeval": {
+            "default": [
+                "answer_relevancy",     // Similar to RAGAS
+                "faithfulness",         // Similar to RAGAS
+                "contextual_precision", // Context usage precision
+                "contextual_recall",    // Important context coverage
+                "bias",                // Checks for biased responses
+                "toxicity"             // Checks for harmful content
+            ]
+        }
+    }
+}
+```
+
+## Usage
+
+### Basic Usage
+
+```python
+from pegasus import LLMEvaluator
+import pandas as pd
+
+# Create your evaluation data
+data = {
+    "question": ["What is the capital of France?", "What is 2+2?"],
+    "answer": ["Paris is the capital of France.", "The answer is 4."],
+    "context": ["France is a country in Europe.", "Basic arithmetic operations."],
+    "expected_answer": ["Paris", "4"]
+}
+df = pd.DataFrame(data)
+
+# Initialize evaluator
+evaluator = LLMEvaluator(evaluator_type="ragas")  # or "deepeval"
+
+# Run evaluation
+results = evaluator.evaluate(df)
+```
+
+### Using Custom Metrics
+
+```python
+evaluator = LLMEvaluator(
+    evaluator_type="ragas",
+    metrics=["answer_relevancy", "faithfulness"]
+)
+```
+
+### Using Custom LLM
+
+```python
+from pegasus.llms.vertexai_llm import VertexAILLM
+
+custom_llm = VertexAILLM(
+    model_name="gemini-1.5-flash",
+    project_id="your-project",
+    location="europe-west2"
+)
+
+evaluator = LLMEvaluator(
+    evaluator_type="deepeval",
+    llm=custom_llm
+)
+```
+
+## Available Metrics
+
+### RAGAS Metrics
+- `answer_relevancy`: Evaluates how relevant the answer is to the question
+- `faithfulness`: Checks if the answer is supported by the provided context
+- `context_recall`: Measures how well the answer captures important information
+- `context_precision`: Evaluates the precision of information used from context
+- `answer_correctness`: Assesses factual correctness of the answer
+- `answer_similarity`: Measures similarity to expected answer
+
+### DeepEval Metrics
+- `answer_relevancy`: Similar to RAGAS metric
+- `faithfulness`: Similar to RAGAS metric
+- `contextual_precision`: Measures precision of context usage
+- `contextual_recall`: Evaluates recall of important context
+- `bias`: Detects potential biases in responses
+- `toxicity`: Checks for toxic or harmful content
+
+## Output Format
+
+The evaluator returns a dictionary with evaluation results for each input row:
+
+```python
+{
+    0: [  # Index of the input row
+        EvaluationResult(
+            metric_name="answer_relevancy",
+            score=0.95,
+            passed=True,
+            threshold=0.5,
+            explanation="Score explanation",
+            reason="Why the score was given"
+        ),
+        # More metric results...
+    ],
+    # More rows...
+}
+```
+
+## Development
+
+### Running Tests
+
+```bash
+pytest tests/
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Write tests for your changes
+4. Ensure all tests pass
+5. Submit a pull request
+
+## License
+
+[Your chosen license]
+
+## Acknowledgments
+
+- RAGAS evaluation framework
+- DeepEval framework
+- Google Cloud Vertex AI team
