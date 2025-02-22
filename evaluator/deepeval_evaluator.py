@@ -20,8 +20,12 @@ from config import (
     DEFAULT_DEEPEVAL_METRICS,
     get_metric_threshold
 )
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
+warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")
 
 from .base_evaluator import BaseEvaluator, EvaluationResult
+from .llms.vertexai_llm import VertexAIDeepEvalWrapper
 
 _SUPPORTED_METRICS = {
     "answer_relevancy": (AnswerRelevancyMetric, 0.5),
@@ -56,18 +60,11 @@ class DeepEvalEvaluator(BaseEvaluator):
         super().__init__(metrics, threshold)
         self.validate_metrics(self.metrics)
         
-        # Initialize VertexAI if no LLM provided
+        # Validate LLM is provided
         if llm is None:
-            vertex_llm = ChatVertexAI(
-                model_name=VERTEX_MODELS["llm"]["name"],
-                project=PROJECT_ID,
-                location=LOCATION,
-                generation_config=VERTEX_MODELS["llm"].get("config", {}),
-                response_validation=False  # Important since deepeval cannot handle validation errors
-            )
-            self.llm = GoogleVertexAIDeepEval(model=vertex_llm)
-        else:
-            self.llm = llm
+            raise ValueError("LLM must be provided for DeepEval evaluation")
+            
+        self.llm = VertexAIDeepEvalWrapper(llm)
 
         # Initialize metrics
         self.deepeval_metrics = []
@@ -86,13 +83,19 @@ class DeepEvalEvaluator(BaseEvaluator):
         """Evaluates inputs using DeepEval metrics."""
         evaluation_results = {}
         
+        # Create mapping of metric class names to supported metric names
+        metric_name_map = {
+            cls.__name__: name 
+            for name, (cls, _) in _SUPPORTED_METRICS.items()
+        }
+        
         for idx, row in df.iterrows():
-            # Create test case for this row
+            context = row["context"] if isinstance(row["context"], list) else [row["context"]]
             test_case = LLMTestCase(
                 input=row["question"],
                 actual_output=row["answer"],
                 expected_output=row.get("expected_answer", ""),
-                context=row["context"] if isinstance(row["context"], str) else "\n".join(row["context"])
+                context=context
             )
             
             # Evaluate with each metric
@@ -101,7 +104,7 @@ class DeepEvalEvaluator(BaseEvaluator):
                 try:
                     metric.measure(test_case)
                     score = float(metric.score)
-                    metric_name = metric.__class__.__name__.replace("Metric", "").lower()
+                    metric_name = metric_name_map[metric.__class__.__name__]
                     threshold = get_metric_threshold(metric_name, "deepeval")
                     row_results.append(
                         EvaluationResult(
@@ -114,7 +117,7 @@ class DeepEvalEvaluator(BaseEvaluator):
                         )
                     )
                 except Exception as e:
-                    metric_name = metric.__class__.__name__.replace("Metric", "").lower()
+                    metric_name = metric_name_map[metric.__class__.__name__]
                     threshold = get_metric_threshold(metric_name, "deepeval")
                     row_results.append(
                         EvaluationResult(

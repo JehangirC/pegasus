@@ -7,6 +7,9 @@ from evaluator.base_evaluator import EvaluationResult
 class MockLLM:
     def generate(self, prompt: str) -> str:
         return "This is a mock response"
+        
+    def get_model_name(self) -> str:
+        return "mock-model"
 
 @pytest.fixture
 def sample_df():

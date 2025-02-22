@@ -20,6 +20,9 @@ from config import (
     DEFAULT_RAGAS_METRICS,
     get_metric_threshold
 )
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
+warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")
 
 _SUPPORTED_METRICS = {
     "answer_relevancy": answer_relevancy,

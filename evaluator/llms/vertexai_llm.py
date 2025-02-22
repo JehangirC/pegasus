@@ -4,6 +4,7 @@ from .base_llm import BaseLLM
 from typing import List, Dict, Any
 import os
 import logging
+from deepeval.models import DeepEvalBaseLLM
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -84,3 +85,20 @@ class VertexAILLM(BaseLLM):
         # depending on how ragas uses it.  For example, you might
         # want to store it as an instance variable.
         logging.info("Run config set")
+
+
+class VertexAIDeepEvalWrapper(DeepEvalBaseLLM):
+    def __init__(self, vertex_ai_llm):
+        self.vertex_ai_llm = vertex_ai_llm
+
+    def load_model(self):
+        return self.vertex_ai_llm
+
+    def generate(self, prompt: str) -> str:
+        return self.vertex_ai_llm.generate(prompt)
+
+    async def a_generate(self, prompt: str) -> str:
+        return await self.vertex_ai_llm.a_generate(prompt)
+
+    def get_model_name(self):
+        return self.vertex_ai_llm.get_model_name()

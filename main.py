@@ -4,6 +4,10 @@ import google.auth
 import google.auth.transport.requests
 import pandas as pd
 from typing import List, Dict, Any, Union
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
 from evaluator.ragas_evaluator import RagasEvaluator
 from evaluator.deepeval_evaluator import DeepEvalEvaluator
 from evaluator.llms.vertexai_llm import VertexAILLM
@@ -16,6 +20,8 @@ from config import (
     DEFAULT_RAGAS_METRICS,
     DEFAULT_DEEPEVAL_METRICS,
 )
+
+console = Console()
 
 class LLMEvaluator:
     """Main class for evaluating LLM outputs."""
@@ -77,8 +83,35 @@ class LLMEvaluator:
         """Get default metrics for the current evaluator."""
         return self.evaluator.default_metrics()
 
+    def display_results(self, results: Dict[str, List[EvaluationResult]], title: str = "Evaluation Results"):
+        """Display evaluation results in a rich formatted table."""
+        console.print(Panel(title, style="bold magenta"))
+        
+        for idx, evals in results.items():
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("Metric", style="dim")
+            table.add_column("Score", justify="right")
+            table.add_column("Status", justify="center")
+            table.add_column("Explanation", style="dim")
+            
+            for result in evals:
+                status = "[green]PASS" if result.passed else "[red]FAIL"
+                table.add_row(
+                    result.metric_name,
+                    f"{result.score:.3f}",
+                    status,
+                    Text(result.explanation, style="italic")
+                )
+            
+            console.print(f"\n[bold blue]Example {idx}:")
+            console.print(table)
+
 # Example usage
 if __name__ == "__main__":
+    from evaluator.llms.vertexai_llm import VertexAILLM
+    from main import LLMEvaluator
+    import pandas as pd
+
     # Sample data
     data = {
         "question": ["What is the capital of France?", "What is 2+2?"],
@@ -86,15 +119,25 @@ if __name__ == "__main__":
         "context": ["France is a country in Europe.", "Basic arithmetic operations."],
         "expected_answer": ["Paris", "4"]
     }
+    df = pd.DataFrame(data)
+
+    # Initialize evaluator for Ragas
+    ragas_evaluator = LLMEvaluator(evaluator_type="ragas")
+
+    # Run Ragas evaluation
+    ragas_results = ragas_evaluator.evaluate(df)
     
-    # Initialize evaluator
-    evaluator = LLMEvaluator(evaluator_type="ragas")
+    # Display Ragas results using rich formatting
+    ragas_evaluator.display_results(ragas_results, "Ragas Evaluation Results")
+
+    # Initialize the LLM (Language Model)
+    llm = VertexAILLM(model_name="gemini-1.5-flash", project_id="testing-ragas", location="europe-west2")
+
+    # Initialize evaluator for DeepEval
+    deepeval_evaluator = LLMEvaluator(evaluator_type="deepeval", llm=llm)
+
+    # Run DeepEval evaluation
+    deepeval_results = deepeval_evaluator.evaluate(df)
     
-    # Run evaluation
-    results = evaluator.evaluate(data)
-    
-    # Print results
-    for idx, evals in results.items():
-        print(f"\nExample {idx}:")
-        for eval_result in evals:
-            print(f"{eval_result.metric_name}: {eval_result.score:.3f} ({'PASS' if eval_result.passed else 'FAIL'})")
+    # Display DeepEval results using rich formatting
+    deepeval_evaluator.display_results(deepeval_results, "DeepEval Evaluation Results")
