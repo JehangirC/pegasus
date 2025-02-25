@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
         ragas_evaluator = LLMEvaluator(
             evaluator_type="ragas", 
-            metrics=["answer_relevancy", "context_recall"]
+            metrics=["answer_relevancy", "context_recall", "context_precision", "faithfulness", "answer_correctness"]
         )
 
         # Run Ragas evaluation on custom columns
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         # Initialize evaluator for DeepEval (standard columns)
         deepeval_evaluator = LLMEvaluator(
             evaluator_type="deepeval", 
-            metrics=["answer_relevancy", "faithfulness"]
+            metrics=["answer_relevancy", "faithfulness", "contextual_precision", "contextual_recall", "bias", "toxicity"]
         )
 
         try:
