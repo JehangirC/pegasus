@@ -134,14 +134,12 @@ You can override the default metrics from the config by passing either a single 
 evaluator = LLMEvaluator(
     evaluator_type="ragas",
     metrics="answer_relevancy",
-    llm=custom_llm  # optional for Ragas
 )
 
 # Using multiple metrics
 evaluator = LLMEvaluator(
     evaluator_type="deepeval",
     metrics=["answer_relevancy", "faithfulness"],
-    llm=custom_llm  # required for DeepEval
 )
 
 # With other parameters
@@ -149,60 +147,10 @@ evaluator = LLMEvaluator(
     evaluator_type="ragas",
     metrics=["answer_relevancy", "context_precision"],
     threshold=0.7,
-    llm=custom_llm  # optional
 )
 ```
 
 The specified metrics will completely replace the default metrics defined in your configuration. Make sure to only use metrics that are supported by your chosen evaluator type (see Available Metrics section below).
-
-### Using Custom LLM
-
-```python
-from pegasus.llms.vertexai_llm import VertexAILLM
-
-custom_llm = VertexAILLM(
-    model_name="gemini-1.5-flash",
-    project_id="your-project",
-    location="europe-west2"
-)
-
-evaluator = LLMEvaluator(
-    evaluator_type="deepeval",
-    llm=custom_llm
-)
-```
-
-### Using Custom Column Names
-
-You can map your DataFrame columns to the required column names using the `column_mapping` parameter:
-
-```python
-# Define your column mapping
-column_mapping = {
-    "question": "user_query",      # Maps 'user_query' to required 'question' column
-    "answer": "response",          # Maps 'response' to required 'answer' column
-    "context": "sources",          # Maps 'sources' to required 'context' column
-    "ground_truth": "expected"     # Maps 'expected' to optional 'ground_truth' column
-}
-
-# Create your evaluation data with custom column names
-data = {
-    "user_query": ["What is the capital of France?"],
-    "response": ["Paris is the capital of France."],
-    "sources": ["France is a country in Europe."],
-    "expected": ["Paris"]
-}
-df = pd.DataFrame(data)
-
-# Initialize evaluator with column mapping
-evaluator = LLMEvaluator(
-    evaluator_type="ragas",
-    column_mapping=column_mapping
-)
-
-# Run evaluation
-results = evaluator.evaluate(df)
-```
 
 The required columns that need to be mapped are:
 
