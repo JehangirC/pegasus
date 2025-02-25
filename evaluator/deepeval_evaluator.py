@@ -13,15 +13,13 @@ from deepeval import evaluate as deepeval_evaluate
 from deepeval.test_case import LLMTestCase
 from deepeval.models import DeepEvalBaseLLM
 from langchain_google_vertexai import ChatVertexAI
-from config import (
+from .config import (
     PROJECT_ID, 
     LOCATION, 
     VERTEX_MODELS, 
     DEFAULT_DEEPEVAL_METRICS,
     get_metric_threshold
 )
-import google.auth
-import google.auth.transport.requests
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")
@@ -38,32 +36,26 @@ _SUPPORTED_METRICS = {
 }
 
 class GoogleVertexAIDeepEval(DeepEvalBaseLLM):
-    """Wrapper for DeepEval to work with VertexAI"""
-    def __init__(self, model):
+    """Adapter for using Google Vertex AI with DeepEval."""
+    def __init__(self, model: ChatVertexAI):
         self.model = model
-
+        
     def load_model(self):
         return self.model
-
-    def generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        return chat_model.invoke(prompt).content
-
+    
     async def a_generate(self, prompt: str) -> str:
         chat_model = self.load_model()
         res = await chat_model.ainvoke(prompt)
         return res.content
-        
+
+    def generate(self, prompt: str) -> str:
+        """Generate response from the model."""
+        response = self.model.invoke(prompt)
+        return response.content
+
     def get_model_name(self) -> str:
-        """Returns the model name for the wrapped model.
-        
-        Required by DeepEvalBaseLLM abstract class.
-        """
-        # Try to get model name from the model
-        if hasattr(self.model, "model_name"):
-            return self.model.model_name
-        # Fallback to a generic name
-        return "vertexai-llm"
+        """Get name of the model."""
+        return f"Vertex AI - {self.model.model_name}"
 
 class DeepEvalEvaluator(BaseEvaluator):
     """Evaluator using the DeepEval library."""
@@ -72,19 +64,10 @@ class DeepEvalEvaluator(BaseEvaluator):
         super().__init__(metrics, threshold)
         self.validate_metrics(self.metrics)
         
-        # Add authentication debugging before LLM initialization
         if llm is None:
-            try:
-                credentials, project = google.auth.default()
-                auth_req = google.auth.transport.requests.Request()
-                credentials.refresh(auth_req)
-                #print(f"Successfully authenticated with Google Cloud: {project}")
-            except Exception as e:
-                print(f"Authentication error: {e}")
-                
             llm = ChatVertexAI(
                 model_name=VERTEX_MODELS["llm"]["name"],
-                project_id=PROJECT_ID,
+                project=PROJECT_ID,
                 location=LOCATION,
                 verbose=False
             )
@@ -133,7 +116,7 @@ class DeepEvalEvaluator(BaseEvaluator):
                 actual_output=row["answer"],
                 expected_output=row.get("expected_answer", ""),
                 context=context,
-                retrieval_context=context  # Make sure this is set explicitly
+                retrieval_context=context
             )
             
             # Evaluate with each metric

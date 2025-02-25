@@ -22,17 +22,20 @@ A powerful evaluation framework for Large Language Models using RAGAS and DeepEv
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd pegasus
 ```
 
-2. Install dependencies:
+1. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up Google Cloud credentials:
+1. Set up Google Cloud credentials:
+
 ```bash
 export GOOGLE_CLOUD_PROJECT="your-project-id"
 export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/credentials.json"
@@ -98,7 +101,7 @@ import pandas as pd
 data = {
     "question": ["What is the capital of France?", "What is 2+2?"],
     "answer": ["Paris is the capital of France.", "The answer is 4."],
-    "context": ["France is a country in Europe.", "Basic arithmetic operations."],
+    "contexts": ["France is a country in Europe.", "Basic arithmetic operations."],
     "expected_answer": ["Paris", "4"]
 }
 df = pd.DataFrame(data)
@@ -169,9 +172,52 @@ evaluator = LLMEvaluator(
 )
 ```
 
+### Using Custom Column Names
+
+You can map your DataFrame columns to the required column names using the `column_mapping` parameter:
+
+```python
+# Define your column mapping
+column_mapping = {
+    "question": "user_query",      # Maps 'user_query' to required 'question' column
+    "answer": "response",          # Maps 'response' to required 'answer' column
+    "context": "sources",          # Maps 'sources' to required 'context' column
+    "ground_truth": "expected"     # Maps 'expected' to optional 'ground_truth' column
+}
+
+# Create your evaluation data with custom column names
+data = {
+    "user_query": ["What is the capital of France?"],
+    "response": ["Paris is the capital of France."],
+    "sources": ["France is a country in Europe."],
+    "expected": ["Paris"]
+}
+df = pd.DataFrame(data)
+
+# Initialize evaluator with column mapping
+evaluator = LLMEvaluator(
+    evaluator_type="ragas",
+    column_mapping=column_mapping
+)
+
+# Run evaluation
+results = evaluator.evaluate(df)
+```
+
+The required columns that need to be mapped are:
+
+- `question`: The input question
+- `answer`: The model's response
+- `context`: The context provided to the model
+
+Optional columns:
+
+- `ground_truth`: The expected answer (used by some metrics)
+
 ## Available Metrics
 
 ### RAGAS Metrics
+
 - `answer_relevancy`: Evaluates how relevant the answer is to the question
 - `faithfulness`: Checks if the answer is supported by the provided context
 - `context_recall`: Measures how well the answer captures important information
@@ -180,6 +226,7 @@ evaluator = LLMEvaluator(
 - `answer_similarity`: Measures similarity to expected answer
 
 ### DeepEval Metrics
+
 - `answer_relevancy`: Similar to RAGAS metric
 - `faithfulness`: Similar to RAGAS metric
 - `contextual_precision`: Measures precision of context usage

@@ -1,8 +1,6 @@
 """Configuration module for LLM evaluator."""
-import os
 import json
 import logging
-from typing import Dict, Any
 from pathlib import Path
 from functools import lru_cache
 from .schemas import Config
@@ -25,13 +23,6 @@ def load_config() -> Config:
         config_path = Path(__file__).parent.parent / "config.json"
         with open(config_path, "r") as f:
             config_dict = json.load(f)
-        
-        # Override with environment variables if present
-        if os.environ.get("GOOGLE_CLOUD_PROJECT"):
-            config_dict["vertex_ai"]["project_id"] = os.environ["GOOGLE_CLOUD_PROJECT"]
-        if os.environ.get("GOOGLE_CLOUD_LOCATION"):
-            config_dict["vertex_ai"]["location"] = os.environ["GOOGLE_CLOUD_LOCATION"]
-        
         return Config(**config_dict)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         raise ConfigurationError(f"Failed to load configuration file: {str(e)}")
@@ -65,5 +56,4 @@ def get_metric_threshold(metric_name: str, evaluator_type: str) -> float:
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, CONFIG.logging.level.value),
-    format=CONFIG.logging.format
-)
+    format=CONFIG.logging.format)
