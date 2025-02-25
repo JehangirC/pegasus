@@ -34,7 +34,7 @@ _SUPPORTED_METRICS = {
 
 class RAGASVertexAIEmbeddings(VertexAIEmbeddings):
     """Wrapper for RAGAS to work with VertexAI embeddings"""
-    async def embed_text(self, text: str) -> list[float]:
+    async def embed_text(self, text: str) -> List[float]:
         """Embeds a text for semantics similarity"""
         return self.embed_documents([text])[0]
 
@@ -76,48 +76,96 @@ class RagasEvaluator(BaseEvaluator):
         for metric_name in self.metrics:
             metric = _SUPPORTED_METRICS[metric_name]
             # Set LLM for the metric
-            metric.__setattr__("llm", self.llm)
+            if hasattr(metric, "llm"):
+                metric.__setattr__("llm", self.llm)
             # Set embeddings if the metric needs them
             if hasattr(metric, "embeddings"):
                 metric.__setattr__("embeddings", self.embeddings)
             self.ragas_metrics.append(metric)
 
+    def validate_metrics(self, metrics: List[str]) -> None:
+        """Validates that provided metrics are supported."""
+        if not metrics:
+            self.metrics = self.default_metrics()
+            return
+            
+        invalid_metrics = [m for m in metrics if m not in _SUPPORTED_METRICS]
+        if invalid_metrics:
+            raise ValueError(f"Unsupported metrics: {invalid_metrics}. Supported metrics are: {list(_SUPPORTED_METRICS.keys())}")
+
     def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
         """Evaluates inputs using Ragas metrics."""
-        # Convert pandas DataFrame to Ragas Dataset format
-        dataset_dict = {
-            "question": df["question"].tolist(),
-            "answer": df["answer"].tolist(),
-            "contexts": [[ctx] if isinstance(ctx, str) else ctx for ctx in df["context"].tolist()],
-            "ground_truth": df["expected_answer"].tolist() if "expected_answer" in df.columns else [""] * len(df)
-        }
-        
-        dataset = Dataset.from_dict(dataset_dict)
-        
-        # Run Ragas evaluation
-        results = evaluate(dataset, metrics=self.ragas_metrics)
-        results_df = results.to_pandas()
+        try:
+            # Convert pandas DataFrame to Ragas Dataset format
+            dataset_dict = {
+                "question": df["question"].tolist(),
+                "answer": df["answer"].tolist(),
+                "contexts": [[ctx] if isinstance(ctx, str) else ctx for ctx in df["context"].tolist()],
+            }
+            
+            # Only add ground_truth if it exists
+            if "expected_answer" in df.columns:
+                dataset_dict["ground_truth"] = df["expected_answer"].tolist()
+            
+            dataset = Dataset.from_dict(dataset_dict)
+            
+            # Run Ragas evaluation
+            results = evaluate(dataset, metrics=self.ragas_metrics)
+            results_df = results.to_pandas()
 
-        # Convert results to EvaluationResult format
-        evaluation_results = {}
-        for idx in range(len(df)):
-            row_results = []
-            for metric in self.metrics:
-                score = float(results_df.iloc[idx][metric])
-                threshold = get_metric_threshold(metric, "ragas")
-                row_results.append(
-                    EvaluationResult(
-                        metric_name=metric,
-                        score=score,
-                        passed=score >= threshold,
-                        threshold=threshold,
-                        explanation=f"Ragas {metric} score: {score:.3f}",
-                        reason=f"Score {'above' if score >= threshold else 'below'} threshold of {threshold}"
+            # Convert results to EvaluationResult format
+            evaluation_results = {}
+            for idx in range(len(df)):
+                row_results = []
+                for metric in self.metrics:
+                    if metric not in results_df.columns:
+                        # Handle case where metric wasn't computed
+                        threshold = get_metric_threshold(metric, "ragas")
+                        row_results.append(
+                            EvaluationResult(
+                                metric_name=metric,
+                                score=0.0,
+                                passed=False,
+                                threshold=threshold,
+                                explanation=f"Ragas {metric} score not computed",
+                                reason=f"Metric may require ground truth that wasn't provided"
+                            )
+                        )
+                    else:
+                        score = float(results_df.iloc[idx][metric])
+                        threshold = get_metric_threshold(metric, "ragas")
+                        row_results.append(
+                            EvaluationResult(
+                                metric_name=metric,
+                                score=score,
+                                passed=score >= threshold,
+                                threshold=threshold,
+                                explanation=f"Ragas {metric} score: {score:.3f}",
+                                reason=f"Score {'meets' if score >= threshold else 'below'} threshold of {threshold}"
+                            )
+                        )
+                evaluation_results[idx] = row_results
+                
+            return evaluation_results
+        except Exception as e:
+            # Handle any evaluation errors gracefully
+            error_results = {}
+            for idx in range(len(df)):
+                row_results = []
+                for metric in self.metrics:
+                    threshold = get_metric_threshold(metric, "ragas")
+                    row_results.append(
+                        EvaluationResult(
+                            metric_name=metric,
+                            score=0.0,
+                            passed=False,
+                            threshold=threshold,
+                            explanation=f"Error evaluating with Ragas",
+                            reason=str(e)
+                        )
                     )
-                )
-            evaluation_results[idx] = row_results
-
-        return evaluation_results
+                error_results[idx] = row_results
+            return error_results
 
     def default_metrics(self) -> List[str]:
         """Returns default metrics for Ragas evaluation."""

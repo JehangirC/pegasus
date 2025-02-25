@@ -20,12 +20,13 @@ from config import (
     DEFAULT_DEEPEVAL_METRICS,
     get_metric_threshold
 )
+import google.auth
+import google.auth.transport.requests
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")
 
 from .base_evaluator import BaseEvaluator, EvaluationResult
-from .llms.vertexai_llm import VertexAIDeepEvalWrapper
 
 _SUPPORTED_METRICS = {
     "answer_relevancy": (AnswerRelevancyMetric, 0.5),
@@ -52,6 +53,17 @@ class GoogleVertexAIDeepEval(DeepEvalBaseLLM):
         chat_model = self.load_model()
         res = await chat_model.ainvoke(prompt)
         return res.content
+        
+    def get_model_name(self) -> str:
+        """Returns the model name for the wrapped model.
+        
+        Required by DeepEvalBaseLLM abstract class.
+        """
+        # Try to get model name from the model
+        if hasattr(self.model, "model_name"):
+            return self.model.model_name
+        # Fallback to a generic name
+        return "vertexai-llm"
 
 class DeepEvalEvaluator(BaseEvaluator):
     """Evaluator using the DeepEval library."""
@@ -60,17 +72,32 @@ class DeepEvalEvaluator(BaseEvaluator):
         super().__init__(metrics, threshold)
         self.validate_metrics(self.metrics)
         
-        # Validate LLM is provided
+        # Add authentication debugging before LLM initialization
         if llm is None:
-            raise ValueError("LLM must be provided for DeepEval evaluation")
+            try:
+                credentials, project = google.auth.default()
+                auth_req = google.auth.transport.requests.Request()
+                credentials.refresh(auth_req)
+                #print(f"Successfully authenticated with Google Cloud: {project}")
+            except Exception as e:
+                print(f"Authentication error: {e}")
+                
+            llm = ChatVertexAI(
+                model_name=VERTEX_MODELS["llm"]["name"],
+                project_id=PROJECT_ID,
+                location=LOCATION,
+                verbose=False
+            )
             
-        self.llm = VertexAIDeepEvalWrapper(llm)
+        self.llm = GoogleVertexAIDeepEval(llm)
 
         # Initialize metrics
         self.deepeval_metrics = []
         for metric in self.metrics:
-            MetricClass, _ = _SUPPORTED_METRICS[metric]
-            threshold = get_metric_threshold(metric, "deepeval")
+            if metric not in _SUPPORTED_METRICS:
+                continue
+            MetricClass, default_threshold = _SUPPORTED_METRICS[metric]
+            threshold = get_metric_threshold(metric, "deepeval") or default_threshold
             self.deepeval_metrics.append(
                 MetricClass(
                     threshold=threshold,
@@ -78,6 +105,16 @@ class DeepEvalEvaluator(BaseEvaluator):
                     async_mode=False
                 )
             )
+
+    def validate_metrics(self, metrics: List[str]) -> None:
+        """Validates that provided metrics are supported."""
+        if not metrics:
+            self.metrics = self.default_metrics()
+            return
+            
+        invalid_metrics = [m for m in metrics if m not in _SUPPORTED_METRICS]
+        if invalid_metrics:
+            raise ValueError(f"Unsupported metrics: {invalid_metrics}. Supported metrics are: {list(_SUPPORTED_METRICS.keys())}")
 
     def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
         """Evaluates inputs using DeepEval metrics."""
@@ -95,7 +132,8 @@ class DeepEvalEvaluator(BaseEvaluator):
                 input=row["question"],
                 actual_output=row["answer"],
                 expected_output=row.get("expected_answer", ""),
-                context=context
+                context=context,
+                retrieval_context=context  # Make sure this is set explicitly
             )
             
             # Evaluate with each metric
@@ -105,7 +143,7 @@ class DeepEvalEvaluator(BaseEvaluator):
                     metric.measure(test_case)
                     score = float(metric.score)
                     metric_name = metric_name_map[metric.__class__.__name__]
-                    threshold = get_metric_threshold(metric_name, "deepeval")
+                    threshold = get_metric_threshold(metric_name, "deepeval") or _SUPPORTED_METRICS[metric_name][1]
                     row_results.append(
                         EvaluationResult(
                             metric_name=metric_name,
@@ -118,7 +156,7 @@ class DeepEvalEvaluator(BaseEvaluator):
                     )
                 except Exception as e:
                     metric_name = metric_name_map[metric.__class__.__name__]
-                    threshold = get_metric_threshold(metric_name, "deepeval")
+                    threshold = get_metric_threshold(metric_name, "deepeval") or _SUPPORTED_METRICS[metric_name][1]
                     row_results.append(
                         EvaluationResult(
                             metric_name=metric_name,

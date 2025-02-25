@@ -1,17 +1,17 @@
 {
     "vertex_ai": {
         "project_id": null,
-        "location": "europe-west2",
+        "location": "europe-west1",
         "models": {
             "llm": {
-                "name": "gemini-1.5-flash",
+                "name": "gemini-2.0-flash-001",
                 "config": {
                     "temperature": 0.0,
                     "top_k": 1
                 }
             },
             "embeddings": {
-                "name": "textembedding-gecko@003"
+                "name": "text-embedding-005"
             }
         }
     },

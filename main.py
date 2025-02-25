@@ -39,11 +39,11 @@ class LLMEvaluator:
         if isinstance(metrics, str):
             metrics = [metrics]
             
+        self.evaluator_type = evaluator_type
+            
         if evaluator_type == "ragas":
             self.evaluator = RagasEvaluator(metrics=metrics, threshold=threshold, llm=llm)
         elif evaluator_type == "deepeval":
-            if llm is None:
-                raise ValueError("DeepEval requires an LLM instance for evaluation")
             self.evaluator = DeepEvalEvaluator(metrics=metrics, threshold=threshold, llm=llm)
         else:
             raise ValueError(f"Unsupported evaluator type: {evaluator_type}")
@@ -90,45 +90,76 @@ class LLMEvaluator:
         return self.evaluator.default_metrics()
 
     def display_results(self, results: Dict[str, List[EvaluationResult]], title: str = "Evaluation Results"):
-        """Display evaluation results in a rich formatted table."""
+        """Display evaluation results in a rich formatted table with average scores."""
         console.print(Panel(title, style="bold magenta"))
-        
+
+        # Aggregate scores for each metric
+        metric_scores = {}
         for idx, evals in results.items():
-            table = Table(show_header=True, header_style="bold cyan")
-            table.add_column("Metric", style="dim")
-            table.add_column("Score", justify="right")
-            table.add_column("Status", justify="center")
-            table.add_column("Explanation", style="dim")
-            
             for result in evals:
-                status = "[green]PASS" if result.passed else "[red]FAIL"
-                table.add_row(
-                    result.metric_name,
-                    f"{result.score:.3f}",
-                    status,
-                    Text(result.explanation, style="italic")
-                )
-            
-            console.print(f"\n[bold blue]Example {idx}:")
-            console.print(table)
+                if result.metric_name not in metric_scores:
+                    metric_scores[result.metric_name] = []
+                metric_scores[result.metric_name].append(result.score)
+
+        # Calculate average scores
+        average_scores = {
+            metric: sum(scores) / len(scores)
+            for metric, scores in metric_scores.items()
+        }
+
+        # Create table
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Metric", style="dim")
+        table.add_column("Average Score", justify="right")
+        table.add_column("Status", justify="center")
+
+        # Populate table with average scores
+        for metric, avg_score in average_scores.items():
+            # Determine pass/fail status based on the threshold
+            # Assuming you have a way to access the threshold for each metric
+            # For example, you might store thresholds in a dictionary
+            if self.evaluator_type == "ragas":
+                from config import get_metric_threshold
+                threshold = get_metric_threshold(metric, "ragas")
+            elif self.evaluator_type == "deepeval":
+                from config import get_metric_threshold
+                threshold = get_metric_threshold(metric, "deepeval")
+            else:
+                threshold = 0.5  # Default threshold if evaluator type is unknown
+
+            status = "[green]PASS" if avg_score >= threshold else "[red]FAIL"
+            table.add_row(
+                metric,
+                f"{avg_score:.3f}",
+                status,
+            )
+
+        console.print(table)
 
 # Example usage
 if __name__ == "__main__":
-    from evaluator.llms.vertexai_llm import VertexAILLM
-    from main import LLMEvaluator
+    from evaluator.deepeval_evaluator import DeepEvalEvaluator
+    from evaluator.ragas_evaluator import RagasEvaluator
     import pandas as pd
+    import warnings
+    warnings.filterwarnings("ignore", message="Retrying langchain_google_vertexai.*", category=UserWarning)
 
     # Sample data
-    data = {
-        "question": ["What is the capital of France?", "What is 2+2?"],
-        "answer": ["Paris is the capital of France.", "The answer is 4."],
-        "context": ["France is a country in Europe.", "Basic arithmetic operations."],
-        "expected_answer": ["Paris", "4"]
-    }
-    df = pd.DataFrame(data)
+    # data = {
+    # "question": ["What is the capital of France?", "What is the highest mountain?"],
+    # "answer": ["Paris", "Mount Everest"],
+    # "context": ["France is a country in Europe. Paris is its capital.", "Mount Everest is in the Himalayas."],
+    # "expected_answer": ["Paris is the capital of France.", "Mount Everest is the highest mountain in the world."]
+    # }
+    # df = pd.DataFrame(data)
+    
+    from datasets import load_dataset
+
+    amnesty_qa = load_dataset("explodinggradients/amnesty_qa", "english_v2", trust_remote_code=True)
+    df = pd.DataFrame(amnesty_qa["eval"].select(range(5)))
 
     # Initialize evaluator for Ragas
-    ragas_evaluator = LLMEvaluator(evaluator_type="ragas")
+    ragas_evaluator = LLMEvaluator(evaluator_type="ragas", metrics=["answer_relevancy", "context_recall"] )
 
     # Run Ragas evaluation
     ragas_results = ragas_evaluator.evaluate(df)
@@ -136,14 +167,15 @@ if __name__ == "__main__":
     # Display Ragas results using rich formatting
     ragas_evaluator.display_results(ragas_results, "Ragas Evaluation Results")
 
-    # Initialize the LLM (Language Model)
-    llm = VertexAILLM(model_name="gemini-1.5-flash", project_id="testing-ragas", location="europe-west2")
-
     # Initialize evaluator for DeepEval
-    deepeval_evaluator = LLMEvaluator(evaluator_type="deepeval", llm=llm)
+    deepeval_evaluator = LLMEvaluator(evaluator_type="deepeval", metrics=["answer_relevancy", "faithfulness"])
 
-    # Run DeepEval evaluation
-    deepeval_results = deepeval_evaluator.evaluate(df)
-    
-    # Display DeepEval results using rich formatting
-    deepeval_evaluator.display_results(deepeval_results, "DeepEval Evaluation Results")
+    try:
+        deepeval_results = deepeval_evaluator.evaluate(df)
+        # Display DeepEval results using rich formatting
+        deepeval_evaluator.display_results(deepeval_results, "DeepEval Evaluation Results")
+    except Exception as e:
+        import traceback
+        print(f"Error running DeepEval evaluation: {e}")
+        print("Full traceback:")
+        traceback.print_exc()
