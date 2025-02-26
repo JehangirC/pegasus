@@ -1,14 +1,10 @@
 """Evaluator implementation using Ragas metrics."""
 
 import logging
-
-import grpc
-
-logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
-
 import warnings
 from typing import Dict, List
 
+import grpc
 import pandas as pd
 from datasets import Dataset
 from langchain_google_vertexai import VertexAI, VertexAIEmbeddings
@@ -31,6 +27,7 @@ from .config import (
     get_metric_threshold,
 )
 
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")
 
@@ -92,7 +89,8 @@ class RagasEvaluator(BaseEvaluator):
         """Ensure proper cleanup of gRPC resources."""
         try:
             grpc.aio.shutdown_asyncio_engine()
-        except:
+        except Exception as e:
+            logging.debug(f"Error during gRPC shutdown: {e}")
             pass
 
     def validate_metrics(self, metrics: List[str]) -> None:

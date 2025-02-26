@@ -30,9 +30,9 @@ def load_config() -> Config:
             config_dict = json.load(f)
         return Config(**config_dict)
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        raise ConfigurationError(f"Failed to load configuration file: {str(e)}")
+        raise ConfigurationError(f"Failed to load configuration file: {str(e)}") from e
     except ValueError as e:
-        raise ConfigurationError(f"Invalid configuration: {str(e)}")
+        raise ConfigurationError(f"Invalid configuration: {str(e)}") from e
 
 
 # Load configuration

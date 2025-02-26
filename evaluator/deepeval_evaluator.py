@@ -16,6 +16,7 @@ from deepeval.models import DeepEvalBaseLLM
 from deepeval.test_case import LLMTestCase
 from langchain_google_vertexai import ChatVertexAI
 
+from .base_evaluator import BaseEvaluator, EvaluationResult
 from .config import (
     DEFAULT_DEEPEVAL_METRICS,
     LOCATION,
@@ -26,8 +27,6 @@ from .config import (
 
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")
-
-from .base_evaluator import BaseEvaluator, EvaluationResult
 
 _SUPPORTED_METRICS = {
     "answer_relevancy": (AnswerRelevancyMetric, 0.5),
