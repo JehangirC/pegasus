@@ -1,6 +1,6 @@
 {
     "vertex_ai": {
-        "project_id": null,
+        "project_id": "playpen-01a198",
         "location": "europe-west1",
         "models": {
             "llm": {

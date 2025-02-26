@@ -15,9 +15,8 @@ A powerful evaluation framework for Large Language Models using RAGAS and DeepEv
 ## Prerequisites
 
 - Python 3.8+
-- Google Cloud account with Vertex AI API enabled
 - Google Cloud credentials configured
-- Access to Vertex AI models (Gemini and Gecko)
+- Access to Vertex AI models (Gemini and Text_Embedding)
 
 ## Installation
 
@@ -25,20 +24,17 @@ A powerful evaluation framework for Large Language Models using RAGAS and DeepEv
 
 ```bash
 git clone <repository-url>
-cd pegasus
+cd pegasus/evaluator/pegasus
 ```
 
 1. Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+!chmod u+x ./pegasus_setup.sh
 ```
 
-1. Set up Google Cloud credentials:
-
 ```bash
-export GOOGLE_CLOUD_PROJECT="your-project-id"
-export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/credentials.json"
+!./pegasus_setup.sh
 ```
 
 ## Configuration
@@ -52,14 +48,14 @@ The evaluator is configured via `config.json`. Here's an explanation of the conf
         "location": "europe-west2",  // Google Cloud region
         "models": {
             "llm": {
-                "name": "gemini-1.5-flash",  // Model for evaluation
+                "name": "gemini-1.5-flash-002",  // Model for evaluation
                 "config": {
                     "temperature": 0.0,
                     "top_k": 1
                 }
             },
             "embeddings": {
-                "name": "textembedding-gecko@003"  // Embedding model
+                "name": "text-embedding-004"  // Embedding model
             }
         }
     },
@@ -91,72 +87,44 @@ The evaluator is configured via `config.json`. Here's an explanation of the conf
 ## Usage
 
 ### Basic Usage
-
+There is a `Getting_Started.ipynb` in `pegasus/evaluator/pegasus`.
 ```python
-from pegasus import LLMEvaluator
-from pegasus.llms.vertexai_llm import VertexAILLM
+from evaluator.deepeval_evaluator import DeepEvalEvaluator
+from evaluator.ragas_evaluator import RagasEvaluator
+from main import LLMEvaluator
 import pandas as pd
 
 # Create your evaluation data
 data = {
     "question": ["What is the capital of France?", "What is 2+2?"],
     "answer": ["Paris is the capital of France.", "The answer is 4."],
-    "contexts": ["France is a country in Europe.", "Basic arithmetic operations."],
-    "expected_answer": ["Paris", "4"]
+    "context": ["France is a country in Europe.", "Basic arithmetic operations."],
+    "ground_truth": ["Paris", "4"]
 }
 df = pd.DataFrame(data)
 
-# Create a custom LLM (optional for Ragas, required for DeepEval)
-custom_llm = VertexAILLM(
-    model_name="gemini-1.5-flash",
-    project_id="your-project",
-    location="europe-west2"
-)
+ragas_evaluator = LLMEvaluator(
+            evaluator_type="ragas",
+            metrics=[
+                "answer_relevancy",
+                "context_recall",
+                "context_precision",
+                "faithfulness",
+                "answer_correctness",
+            ],
+        )
 
-# Initialize evaluator with Ragas (will use config defaults if no LLM provided)
-evaluator = LLMEvaluator(evaluator_type="ragas")
-# Or provide a custom LLM
-evaluator = LLMEvaluator(evaluator_type="ragas", llm=custom_llm)
-
-# Initialize evaluator with DeepEval (requires LLM)
-evaluator = LLMEvaluator(evaluator_type="deepeval", llm=custom_llm)
-
-# Run evaluation
-results = evaluator.evaluate(df)
+ragas_results = ragas_evaluator.evaluate(df) #It needs to be a Pandas DataFrame
+#ragas_evaluator.display_results(ragas_results, "Ragas Evaluation Results")
+ragas_df = ragas_evaluator.to_df(ragas_results)
+ragas_df
 ```
-
-### Using Custom Metrics
-
-You can override the default metrics from the config by passing either a single metric or a list of metrics:
-
-```python
-# Using a single metric
-evaluator = LLMEvaluator(
-    evaluator_type="ragas",
-    metrics="answer_relevancy",
-)
-
-# Using multiple metrics
-evaluator = LLMEvaluator(
-    evaluator_type="deepeval",
-    metrics=["answer_relevancy", "faithfulness"],
-)
-
-# With other parameters
-evaluator = LLMEvaluator(
-    evaluator_type="ragas",
-    metrics=["answer_relevancy", "context_precision"],
-    threshold=0.7,
-)
-```
-
-The specified metrics will completely replace the default metrics defined in your configuration. Make sure to only use metrics that are supported by your chosen evaluator type (see Available Metrics section below).
 
 The required columns that need to be mapped are:
 
-- `question`: The input question
-- `answer`: The model's response
-- `context`: The context provided to the model
+- `question`: The input question.
+- `answer`: The model's response.
+- `context`: The context provided to the model.
 
 Optional columns:
 
@@ -166,21 +134,22 @@ Optional columns:
 
 ### RAGAS Metrics
 
-- `answer_relevancy`: Evaluates how relevant the answer is to the question
-- `faithfulness`: Checks if the answer is supported by the provided context
-- `context_recall`: Measures how well the answer captures important information
-- `context_precision`: Evaluates the precision of information used from context
-- `answer_correctness`: Assesses factual correctness of the answer
-- `answer_similarity`: Measures similarity to expected answer
+- `answer_relevancy`: Evaluates how relevant the answer is to the question.
+- `faithfulness`: Checks if the answer is supported by the provided context.
+- `context_recall`: Measures how well the answer captures important information.
+- `context_precision`: Evaluates the precision of information used from context.
+- `answer_correctness`: Assesses factual correctness of the answer.
+- `answer_similarity`: Measures similarity to expected answer.
 
 ### DeepEval Metrics
 
-- `answer_relevancy`: Similar to RAGAS metric
-- `faithfulness`: Similar to RAGAS metric
+- `answer_relevancy`: Ealuates whether the prompt template in your generator is able to instruct your LLM to output relevant and helpful outputs based on the retrieval_context
+- `faithfulness`: Evaluates whether the LLM used in your generator can output information that does not hallucinate AND contradict any factual information presented in the retrieval_context.
 - `contextual_precision`: Measures precision of context usage
 - `contextual_recall`: Evaluates recall of important context
 - `bias`: Detects potential biases in responses
 - `toxicity`: Checks for toxic or harmful content
+For more information please checkout [https://docs.confident-ai.com/guides/guides-rag-evaluation](https://docs.confident-ai.com/guides/guides-rag-evaluation)
 
 ## Output Format
 
@@ -195,9 +164,8 @@ The evaluator returns a dictionary with evaluation results for each input row:
             passed=True,
             threshold=0.5,
             explanation="Score explanation",
-            reason="Why the score was given"
+            reason="Why the score was given" # only for deepeval
         ),
-        # More metric results...
     ],
     # More rows...
 }

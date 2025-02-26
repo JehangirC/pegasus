@@ -92,6 +92,57 @@ class LLMEvaluator:
     def get_default_metrics(self) -> List[str]:
         """Get default metrics for the current evaluator."""
         return self.evaluator.default_metrics()
+    def to_df(self, df):
+        """
+        Aggregate RAGAS evaluation results with metrics as columns.
+
+        Parameters:
+        -----------
+        ragas_results : dict
+            Dictionary of evaluation results where keys are IDs and values are lists of result objects.
+
+        Returns:
+        --------
+        pd.DataFrame
+            DataFrame with metrics as columns and a single row showing average scores across all IDs.
+        """
+        # Create a dictionary to store aggregated scores by metric
+        metric_scores = {}
+
+        for key, eval_results in df.items():
+            for result in eval_results:
+                metric_name = result.metric_name
+                score = result.score
+
+                if metric_name not in metric_scores:
+                    metric_scores[metric_name] = {
+                        'total_score': 0,
+                        'count': 0,
+                        'passed': 0,
+                        'threshold': result.threshold,
+                        'explanation': result.explanation
+                    }
+
+                metric_scores[metric_name]['total_score'] += score
+                metric_scores[metric_name]['count'] += 1
+                if result.passed:
+                    metric_scores[metric_name]['passed'] += 1
+
+        # Calculate averages and create the DataFrame
+        avg_data = {'Metric': 'Average Across All IDs'}
+
+        for metric, stats in metric_scores.items():
+            avg_score = stats['total_score'] / stats['count']
+            avg_data[metric] = round(avg_score, 3)
+            # You could also include pass rate if needed
+            # avg_data[f"{metric}_pass_rate"] = stats['passed'] / stats['count']
+
+        df_avg = pd.DataFrame([avg_data])
+
+        # Set 'Metric' as the index for better display
+        df_avg = df_avg.set_index('Metric')
+
+        return df_avg
 
     def display_results(
         self,
