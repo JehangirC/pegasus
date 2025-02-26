@@ -12,7 +12,8 @@ from .base_evaluator import EvaluationInput
 from .config import CONFIG
 from .constants import DataColumns, ErrorMessages
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 def setup_logger(name: str) -> logging.Logger:
     """Set up a logger with the configured settings.
@@ -53,7 +54,9 @@ def validate_dataframe(df: pd.DataFrame) -> None:
         raise ValueError(ErrorMessages.INVALID_DATA.format(columns=missing))
 
 
-def retry_on_exception(max_retries: Optional[int] = None, delay: Optional[float] = None) -> Callable[[Callable[..., T]], Callable[..., T]]:
+def retry_on_exception(
+    max_retries: Optional[int] = None, delay: Optional[float] = None
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator to retry function on exception.
 
     Args:
@@ -63,7 +66,9 @@ def retry_on_exception(max_retries: Optional[int] = None, delay: Optional[float]
     Returns:
         A decorator function that adds retry functionality
     """
-    max_retries_val = max_retries if max_retries is not None else CONFIG.error_handling.max_retries
+    max_retries_val = (
+        max_retries if max_retries is not None else CONFIG.error_handling.max_retries
+    )
     delay_val = delay if delay is not None else CONFIG.error_handling.retry_delay
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
@@ -81,11 +86,15 @@ def retry_on_exception(max_retries: Optional[int] = None, delay: Optional[float]
             if last_exception is not None:
                 raise last_exception
             raise RuntimeError("Unexpected state in retry_on_exception")
+
         return wrapper
+
     return decorator
 
 
-def time_execution(logger: logging.Logger) -> Callable[[Callable[..., T]], Callable[..., T]]:
+def time_execution(
+    logger: logging.Logger,
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator to log function execution time.
 
     Args:
@@ -94,6 +103,7 @@ def time_execution(logger: logging.Logger) -> Callable[[Callable[..., T]], Calla
     Returns:
         A decorator function that adds execution time logging
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
@@ -102,16 +112,18 @@ def time_execution(logger: logging.Logger) -> Callable[[Callable[..., T]], Calla
             end = time()
             logger.debug(f"{func.__name__} executed in {end - start:.2f} seconds")
             return result
+
         return wrapper
+
     return decorator
 
 
 def load_eval_data_json(filepath: str) -> List[EvaluationInput]:
     """Loads evaluation data from a JSON file.
-    
+
     Args:
         filepath: Path to the JSON file
-        
+
     Returns:
         List of EvaluationInput objects
     """
@@ -123,13 +135,13 @@ def load_eval_data_json(filepath: str) -> List[EvaluationInput]:
 
 def load_eval_data_csv(filepath: str) -> List[EvaluationInput]:
     """Loads evaluation data from a CSV file.
-    
+
     Args:
         filepath: Path to the CSV file
-        
+
     Returns:
         List of EvaluationInput objects
-        
+
     Raises:
         ValueError: If required columns are missing
     """
@@ -144,6 +156,7 @@ def load_eval_data_csv(filepath: str) -> List[EvaluationInput]:
         df["ground_truths"] = ""
     records: List[Dict[str, Any]] = df.to_dict(orient="records")  # type: ignore[assignment]
     return [EvaluationInput(**row) for row in records]
+
 
 # Create main logger for the package
 logger = setup_logger("llm_evaluator")

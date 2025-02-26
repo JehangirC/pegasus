@@ -35,7 +35,9 @@ class EvaluationInput(BaseModel):
 class BaseEvaluator(ABC):
     """Abstract base class for all evaluators."""
 
-    def __init__(self, metrics: Optional[Union[str, List[str]]] = None, threshold: float = 0.5) -> None:
+    def __init__(
+        self, metrics: Optional[Union[str, List[str]]] = None, threshold: float = 0.5
+    ) -> None:
         self.threshold = threshold
         # Convert single metric to list
         if isinstance(metrics, str):
@@ -70,10 +72,10 @@ class BaseEvaluator(ABC):
 
     def validate_metrics(self, metrics: List[str]) -> None:
         """Validates that the requested metrics are supported.
-        
+
         Args:
             metrics: List of metric names to validate
-            
+
         Raises:
             ValueError: If any metric is not supported
         """

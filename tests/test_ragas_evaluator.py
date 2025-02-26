@@ -83,7 +83,9 @@ def test_supported_metrics(ragas_evaluator: RagasEvaluator) -> None:
     assert "context_recall" in supported
 
 
-def test_evaluation_basic(ragas_evaluator: RagasEvaluator, sample_df: pd.DataFrame) -> None:
+def test_evaluation_basic(
+    ragas_evaluator: RagasEvaluator, sample_df: pd.DataFrame
+) -> None:
     results = ragas_evaluator.evaluate(sample_df)
 
     assert len(results) == len(sample_df)

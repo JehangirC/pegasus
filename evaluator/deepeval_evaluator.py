@@ -66,10 +66,10 @@ class DeepEvalEvaluator(BaseEvaluator):
     """Evaluator using the DeepEval library."""
 
     def __init__(
-        self, 
-        metrics: Optional[List[str]] = None, 
-        threshold: Optional[float] = None, 
-        llm: Optional[Any] = None
+        self,
+        metrics: Optional[List[str]] = None,
+        threshold: Optional[float] = None,
+        llm: Optional[Any] = None,
     ) -> None:
         super().__init__(metrics, threshold if threshold is not None else 0.5)
         self.validate_metrics(self.metrics)
@@ -84,7 +84,7 @@ class DeepEvalEvaluator(BaseEvaluator):
 
         self.llm = GoogleVertexAIDeepEval(llm)
         self.deepeval_metrics: List[Any] = []
-        
+
         # Initialize metrics
         for metric in self.metrics:
             if metric not in _SUPPORTED_METRICS:

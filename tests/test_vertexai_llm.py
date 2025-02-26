@@ -17,7 +17,9 @@ class TestVertexAILLM(unittest.TestCase):
 
     @patch("evaluator.llms.vertexai_llm.vertexai.init")
     @patch("evaluator.llms.vertexai_llm.GenerativeModel")
-    def test_initialization_success(self, mock_generative_model: MagicMock, mock_init: MagicMock) -> None:
+    def test_initialization_success(
+        self, mock_generative_model: MagicMock, mock_init: MagicMock
+    ) -> None:
         llm = VertexAILLM(**self.default_config)
         mock_init.assert_called_once_with(
             project=self.default_config["project_id"],
@@ -27,7 +29,9 @@ class TestVertexAILLM(unittest.TestCase):
 
     @patch("evaluator.llms.vertexai_llm.vertexai.init")
     @patch("evaluator.llms.vertexai_llm.GenerativeModel")
-    def test_generate_success(self, mock_generative_model: MagicMock, mock_init: MagicMock) -> None:
+    def test_generate_success(
+        self, mock_generative_model: MagicMock, mock_init: MagicMock
+    ) -> None:
         mock_response = MagicMock()
         mock_response.text = "This is a test response."
         mock_generative_model.return_value.generate_content.return_value = mock_response
@@ -42,7 +46,9 @@ class TestVertexAILLM(unittest.TestCase):
 
     @patch("evaluator.llms.vertexai_llm.vertexai.init")
     @patch("evaluator.llms.vertexai_llm.GenerativeModel")
-    def test_generate_with_parameters(self, mock_generative_model: MagicMock, mock_init: MagicMock) -> None:
+    def test_generate_with_parameters(
+        self, mock_generative_model: MagicMock, mock_init: MagicMock
+    ) -> None:
         mock_response = MagicMock()
         mock_response.text = "This is a test response."
         mock_generative_model.return_value.generate_content.return_value = mock_response

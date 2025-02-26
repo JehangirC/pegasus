@@ -44,7 +44,9 @@ class LLMEvaluator:
             threshold: Overall threshold for pass/fail
         """
         if evaluator_type == "ragas":
-            self.evaluator: BaseEvaluator = RagasEvaluator(metrics=metrics, threshold=threshold)
+            self.evaluator: BaseEvaluator = RagasEvaluator(
+                metrics=metrics, threshold=threshold
+            )
         elif evaluator_type == "deepeval":
             self.evaluator = DeepEvalEvaluator(metrics=metrics, threshold=threshold)
         else:

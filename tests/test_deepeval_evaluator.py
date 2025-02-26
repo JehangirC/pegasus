@@ -77,7 +77,9 @@ def test_supported_metrics(deepeval_evaluator: DeepEvalEvaluator) -> None:
     assert "faithfulness" in supported
 
 
-def test_evaluation_basic(deepeval_evaluator: DeepEvalEvaluator, sample_df: pd.DataFrame) -> None:
+def test_evaluation_basic(
+    deepeval_evaluator: DeepEvalEvaluator, sample_df: pd.DataFrame
+) -> None:
     results = deepeval_evaluator.evaluate(sample_df)
 
     assert len(results) == len(sample_df)
@@ -118,7 +120,7 @@ def test_list_context_handling(deepeval_evaluator: DeepEvalEvaluator) -> None:
 
     results = deepeval_evaluator.evaluate(df)
     assert len(results) == 1
-    assert all(isinstance(result, EvaluationResult) for result in results[0]) # type: ignore[index]
+    assert all(isinstance(result, EvaluationResult) for result in results[0])  # type: ignore[index]
 
 
 def test_evaluator_with_invalid_metric(mock_vertex: Any) -> None:
@@ -134,7 +136,7 @@ def test_evaluate(mock_vertex: Any, sample_input: pd.DataFrame) -> None:
     """Test evaluate method."""
     evaluator = DeepEvalEvaluator()
     results = evaluator.evaluate(sample_input)
-    
+
     first_key = "0"
     # No type ignore needed since we're using string key
     assert len(results[first_key]) > 0
