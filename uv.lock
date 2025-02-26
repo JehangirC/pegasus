@@ -528,7 +528,7 @@ wheels = [
 
 [[package]]
 name = "deepeval"
-version = "2.4.1"
+version = "2.4.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datasets" },
@@ -558,9 +558,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e0/43/1b65e180876fd6bd98cf648653b1e5c0699cef390f9046d343dd50bf6d6d/deepeval-2.4.1.tar.gz", hash = "sha256:ec37a5f42bf77e177ebfa3f7a96d32610d6d4b79187456819f99b27ef28ef720", size = 392386 }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/0c/5256fcd7589ab1af9dccc7bf1f41ee0e75b0d63b21c2e98179d4b788a4ff/deepeval-2.4.5.tar.gz", hash = "sha256:094bd6e4cff365a57c430df961884bd26269ad6d18ffc5417f362d3ac8ebdd44", size = 394822 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/26/6a18fdb015f2991aa635fd2c619533ad7801671084d4c557fc8973fa97e8/deepeval-2.4.1-py3-none-any.whl", hash = "sha256:2636e1434cf05a7841f8ef5e57a1fa9f1c90b274ee236eb360e3caa6f9048450", size = 559291 },
+    { url = "https://files.pythonhosted.org/packages/da/f7/7e4b0f0581f343784dcfbc0bb136c8be364528281420ee2f9ae545b5cae7/deepeval-2.4.5-py3-none-any.whl", hash = "sha256:a9d2d6e7f8caaad1e06d1b5de36aaff7accd3cca465caaeb7d3d7033dab628fd", size = 563004 },
 ]
 
 [[package]]
@@ -2306,7 +2306,7 @@ dev = [
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "datasets", specifier = ">=2.15.0" },
-    { name = "deepeval", specifier = ">=0.11.3" },
+    { name = "deepeval", specifier = "==2.4.5" },
     { name = "google-auth", specifier = ">=2.38.0" },
     { name = "google-cloud-aiplatform", specifier = ">=1.38.1" },
     { name = "google-cloud-storage", specifier = ">=2.13.0" },

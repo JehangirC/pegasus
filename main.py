@@ -13,6 +13,7 @@ from evaluator.deepeval_evaluator import DeepEvalEvaluator
 from evaluator.llms.vertexai_llm import VertexAILLM
 from evaluator.base_evaluator import EvaluationInput, EvaluationResult
 from evaluator.llms.base_llm import BaseLLM
+from evaluator.config import get_metric_threshold
 import logging
 
 logging.getLogger('huggingface_hub').setLevel(logging.ERROR)
@@ -90,6 +91,9 @@ class LLMEvaluator:
         table.add_column("Average Score", justify="right")
         table.add_column("Status", justify="center")
         
+        # Define metrics where lower scores are better
+        inverse_metrics = ["bias", "toxicity"]
+        
         # Calculate average scores for each metric
         metric_scores = {}
         for example_results in results.values():
@@ -101,9 +105,20 @@ class LLMEvaluator:
         # Add rows to table
         for metric, scores in metric_scores.items():
             avg_score = sum(scores) / len(scores)
-            passed = avg_score >= self.evaluator.threshold
-            status = "PASS" if passed else "FAIL"
-            style = "green" if passed else "red"
+            evaluator_type = "ragas" if isinstance(self.evaluator, RagasEvaluator) else "deepeval"
+            metric_threshold = get_metric_threshold(metric, evaluator_type)
+            
+            # For inverse metrics (bias/toxicity), lower is better
+            if metric in inverse_metrics:
+                passed = avg_score <= metric_threshold
+                status = "PASS" if passed else "FAIL"
+                style = "green" if passed else "red"
+            else:
+                # For regular metrics, higher is better
+                passed = avg_score >= metric_threshold
+                status = "PASS" if passed else "FAIL"
+                style = "green" if passed else "red"
+                
             table.add_row(metric, f"{avg_score:.3f}", Text(status, style=style))
             
         # Display results
@@ -135,14 +150,10 @@ if __name__ == "__main__":
             metrics=["answer_relevancy", "faithfulness", "contextual_precision", "contextual_recall", "bias", "toxicity"]
         )
 
-        try:
-            deepeval_results = deepeval_evaluator.evaluate(df)
-            deepeval_evaluator.display_results(deepeval_results, "DeepEval Evaluation Results")
-        except Exception as e:
-            import traceback
-            print(f"Error running DeepEval evaluation: {e}")
-            print("Full traceback:")
-            traceback.print_exc()
+
+        deepeval_results = deepeval_evaluator.evaluate(df)
+        deepeval_evaluator.display_results(deepeval_results, "DeepEval Evaluation Results")
+
     finally:
         # Ensure proper cleanup of gRPC resources
         try:

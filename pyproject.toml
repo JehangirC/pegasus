@@ -8,7 +8,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "ragas>=0.0.22",
-    "deepeval>=0.11.3",
+    "deepeval==2.4.5",
     "langchain-google-vertexai",
     "pandas>=2.0.0",
     "google-cloud-aiplatform>=1.38.1",
