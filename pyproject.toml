@@ -21,6 +21,8 @@ dependencies = [
     "rich>=13.9.4",
     "pandas-stubs>=2.2.2.240807",
     "pre-commit>=4.1.0",
+    "grpcio>=1.70.0",  # Pin gRPC version for Python 3.12 compatibility
+    "grpcio-tools>=1.70.0",  # Pin gRPC tools version
 ]
 
 [project.optional-dependencies]
@@ -49,10 +51,10 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 multi_line_output = 3
-line_length = 88
+line-length = 88
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.12"  # Updated to match your mypy.ini
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

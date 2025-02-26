@@ -37,9 +37,20 @@ jobs:
       run: |
         black . --check
 
+    - name: Cache mypy
+      uses: actions/cache@v3
+      with:
+        path: .mypy_cache
+        key: ${{ runner.os }}-mypy-${{ hashFiles('**/*.py') }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-mypy-
+
     - name: Type check with mypy
       run: |
-        mypy .
+        mypy --python-version 3.12 \
+          --cache-dir .mypy_cache \
+          --show-error-codes \
+          .
 
   test:
     name: Test Python ${{ matrix.python-version }}
@@ -66,6 +77,12 @@ jobs:
     - name: Install dependencies
       run: |
         uv pip install --system -e ".[dev]"
+
+    - name: Force install gRPC for Python 3.12
+      if: matrix.python-version == '3.12'
+      run: |
+        uv pip install --system --force-reinstall grpcio==1.70.0 grpcio-tools==1.70.0
+        python -c "import grpc; print(f'gRPC version: {grpc.__version__}')"
 
     - name: Run tests with pytest
       run: |
