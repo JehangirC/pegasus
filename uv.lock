@@ -2491,7 +2491,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "black" },
+    { name = "black", extra = ["jupyter"] },
     { name = "isort" },
     { name = "mypy" },
     { name = "pytest" },
@@ -2506,7 +2506,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "black", extras = ["jupyter"], marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "datasets", specifier = ">=2.15.0" },
     { name = "deepeval", specifier = "==2.4.5" },
     { name = "google-auth", specifier = ">=2.38.0" },

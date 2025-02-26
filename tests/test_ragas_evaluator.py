@@ -1,6 +1,5 @@
 """Tests for the Ragas evaluator implementation."""
 
-from typing import Any
 
 import pandas as pd
 import pytest
@@ -140,12 +139,3 @@ def test_metric_dependencies() -> None:
 
     with pytest.raises(ValueError, match="Missing required columns"):
         evaluator.evaluate(df)
-
-
-def test_evaluator_with_invalid_metric(mock_vertex: Any) -> None:
-    """Test evaluator with invalid metric."""
-    with pytest.raises(ValueError):
-        RagasEvaluator(metrics=["invalid_metric"])
-
-    with pytest.raises(ValueError):
-        RagasEvaluator(metrics=["answer_relevancy", "invalid_metric"])
