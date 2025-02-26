@@ -1,6 +1,5 @@
 """Tests for the DeepEval evaluator implementation."""
 
-from typing import Any
 
 import pandas as pd
 import pytest

@@ -20,6 +20,7 @@ dependencies = [
     "vertexai>=1.43.0",
     "rich>=13.9.4",
     "pandas-stubs>=2.2.2.240807",
+    "pre-commit>=4.1.0",
 ]
 
 [project.optional-dependencies]
