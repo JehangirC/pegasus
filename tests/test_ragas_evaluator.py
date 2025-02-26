@@ -1,6 +1,5 @@
 """Tests for the Ragas evaluator implementation."""
 
-
 import pandas as pd
 import pytest
 
