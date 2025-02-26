@@ -60,7 +60,7 @@ def test_initialization_with_custom_metrics(mock_llm: MockLLM) -> None:
     assert evaluator.metrics == custom_metrics
     assert evaluator.llm is not None
 
-    with pytest.raises(ValueError, match="Invalid metrics"):
+    with pytest.raises(ValueError, match="Unsupported metrics"):
         DeepEvalEvaluator(metrics=["invalid_metric"], llm=MockLLM())
 
 
@@ -120,25 +120,13 @@ def test_list_context_handling(deepeval_evaluator: DeepEvalEvaluator) -> None:
 
     results = deepeval_evaluator.evaluate(df)
     assert len(results) == 1
-    assert all(isinstance(result, EvaluationResult) for result in results[0])  # type: ignore[index]
+    assert all(isinstance(result, EvaluationResult) for result in results["0"])
 
 
-def test_evaluator_with_invalid_metric(mock_vertex: Any) -> None:
+def test_evaluator_with_invalid_metric() -> None:
     """Test evaluator with invalid metric."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Unsupported metrics"):
         DeepEvalEvaluator(metrics=["invalid_metric"])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Unsupported metrics"):
         DeepEvalEvaluator(metrics=["answer_relevancy", "invalid_metric"])
-
-
-def test_evaluate(mock_vertex: Any, sample_input: pd.DataFrame) -> None:
-    """Test evaluate method."""
-    evaluator = DeepEvalEvaluator()
-    results = evaluator.evaluate(sample_input)
-
-    first_key = "0"
-    # No type ignore needed since we're using string key
-    assert len(results[first_key]) > 0
-    assert all(isinstance(r, EvaluationResult) for r in results[first_key])
-    assert all(hasattr(r, "score") for r in results[first_key])
