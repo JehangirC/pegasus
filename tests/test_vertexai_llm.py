@@ -1,9 +1,7 @@
 """Tests for the VertexAI LLM implementation."""
 
 import unittest
-from unittest.mock import patch, MagicMock
-import pytest
-from google.api_core import exceptions
+from unittest.mock import MagicMock, patch
 
 from evaluator.llms.vertexai_llm import VertexAILLM
 

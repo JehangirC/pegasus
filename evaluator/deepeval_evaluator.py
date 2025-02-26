@@ -1,27 +1,28 @@
 """Evaluator implementation using DeepEval metrics."""
 
-from typing import Dict, List, Any
+import warnings
+from typing import Dict, List
+
 import pandas as pd
 from deepeval.metrics import (
     AnswerRelevancyMetric,
-    FaithfulnessMetric,
+    BiasMetric,
     ContextualPrecisionMetric,
     ContextualRecallMetric,
-    BiasMetric,
+    FaithfulnessMetric,
     ToxicityMetric,
 )
-from deepeval import evaluate as deepeval_evaluate
-from deepeval.test_case import LLMTestCase
 from deepeval.models import DeepEvalBaseLLM
+from deepeval.test_case import LLMTestCase
 from langchain_google_vertexai import ChatVertexAI
+
 from .config import (
-    PROJECT_ID,
-    LOCATION,
-    VERTEX_MODELS,
     DEFAULT_DEEPEVAL_METRICS,
+    LOCATION,
+    PROJECT_ID,
+    VERTEX_MODELS,
     get_metric_threshold,
 )
-import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")

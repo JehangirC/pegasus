@@ -1,27 +1,26 @@
 """Main interface for LLM evaluation."""
 
-import pandas as pd
+import logging
+from typing import Dict, List, Union
+
 import grpc
-import asyncio
-from typing import List, Dict, Any, Union
+import pandas as pd
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    TextColumn,
-    BarColumn,
     TaskProgressColumn,
+    TextColumn,
 )
-from evaluator.ragas_evaluator import RagasEvaluator
-from evaluator.deepeval_evaluator import DeepEvalEvaluator
-from evaluator.llms.vertexai_llm import VertexAILLM
-from evaluator.base_evaluator import EvaluationInput, EvaluationResult
-from evaluator.llms.base_llm import BaseLLM
+from rich.table import Table
+from rich.text import Text
+
+from evaluator.base_evaluator import EvaluationResult
 from evaluator.config import get_metric_threshold
-import logging
+from evaluator.deepeval_evaluator import DeepEvalEvaluator
+from evaluator.ragas_evaluator import RagasEvaluator
 
 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
@@ -194,5 +193,6 @@ if __name__ == "__main__":
         # Ensure proper cleanup of gRPC resources
         try:
             grpc.aio.shutdown_asyncio_engine()
-        except:
+        except Exception as e:
+            logging.debug(f"Error shutting down gRPC engine: {e}")
             pass

@@ -1,10 +1,10 @@
 """Tests for the DeepEval evaluator implementation."""
 
-import pytest
 import pandas as pd
-import numpy as np
-from evaluator.deepeval_evaluator import DeepEvalEvaluator
+import pytest
+
 from evaluator.base_evaluator import EvaluationResult
+from evaluator.deepeval_evaluator import DeepEvalEvaluator
 
 
 class MockLLM:

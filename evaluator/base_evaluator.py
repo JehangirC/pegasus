@@ -1,10 +1,10 @@
 """Base evaluator class for LLM evaluation."""
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Union
-from pydantic import BaseModel, field_validator
-from datetime import datetime
+from typing import Dict, List, Union
+
 import pandas as pd
+from pydantic import BaseModel, field_validator
 
 
 class EvaluationResult(BaseModel):

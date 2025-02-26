@@ -1,15 +1,13 @@
 """Vertex AI LLM implementation."""
 
-from typing import Any, Dict, List, Optional
-import google.auth
-import google.auth.transport.requests
-from langchain_google_vertexai import ChatVertexAI
-from ..config import PROJECT_ID, LOCATION, VERTEX_MODELS
-from .base_llm import BaseLLM
-import vertexai
-from vertexai.generative_models import GenerativeModel
 import logging
+
+import vertexai
 from deepeval.models import DeepEvalBaseLLM
+from vertexai.generative_models import GenerativeModel
+
+from ..config import LOCATION, PROJECT_ID, VERTEX_MODELS
+from .base_llm import BaseLLM
 
 # Configure logging
 logging.basicConfig(
@@ -53,7 +51,7 @@ class VertexAILLM(BaseLLM):
         except Exception as e:
             logging.error(f"Failed to initialize Vertex AI: {e}")
             raise ValueError(
-                f"Failed to initialize Vertex AI. Ensure your project ID and location are correct, and that you have the necessary permissions.  See the logs for details."
+                "Failed to initialize Vertex AI. Ensure your project ID and location are correct, and that you have the necessary permissions.  See the logs for details."
             ) from e
 
     def generate(self, prompt: str, **kwargs) -> str:

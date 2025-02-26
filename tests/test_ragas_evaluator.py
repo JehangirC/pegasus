@@ -1,9 +1,10 @@
 """Tests for the Ragas evaluator implementation."""
 
-import pytest
 import pandas as pd
-from evaluator.ragas_evaluator import RagasEvaluator
+import pytest
+
 from evaluator.base_evaluator import EvaluationResult
+from evaluator.ragas_evaluator import RagasEvaluator
 
 
 class MockLLM:

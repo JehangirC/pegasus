@@ -1,33 +1,35 @@
 """Evaluator implementation using Ragas metrics."""
 
 import logging
+
 import grpc
-import asyncio
 
 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
-from typing import Dict, List, Any
+import warnings
+from typing import Dict, List
+
 import pandas as pd
-from ragas import evaluate
-from ragas.metrics import (
-    answer_relevancy,
-    faithfulness,
-    context_recall,
-    context_precision,
-    answer_correctness,
-)
 from datasets import Dataset
-from ragas.llms.base import LangchainLLMWrapper
 from langchain_google_vertexai import VertexAI, VertexAIEmbeddings
+from ragas import evaluate
+from ragas.llms.base import LangchainLLMWrapper
+from ragas.metrics import (
+    answer_correctness,
+    answer_relevancy,
+    context_precision,
+    context_recall,
+    faithfulness,
+)
+
 from .base_evaluator import BaseEvaluator, EvaluationResult
 from .config import (
-    PROJECT_ID,
-    LOCATION,
-    VERTEX_MODELS,
     DEFAULT_RAGAS_METRICS,
+    LOCATION,
+    PROJECT_ID,
+    VERTEX_MODELS,
     get_metric_threshold,
 )
-import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")
