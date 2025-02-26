@@ -1,7 +1,7 @@
 """Configuration schemas and loading utilities."""
 
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Callable
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, validator
 

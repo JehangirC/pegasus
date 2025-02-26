@@ -1,7 +1,7 @@
 """Main interface for LLM evaluation."""
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import grpc
 import pandas as pd

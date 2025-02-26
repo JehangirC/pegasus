@@ -1,7 +1,7 @@
 """Evaluator implementation using DeepEval metrics."""
 
 import warnings
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from deepeval.metrics import (

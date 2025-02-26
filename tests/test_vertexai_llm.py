@@ -1,8 +1,8 @@
 """Tests for the VertexAI LLM implementation."""
 
 import unittest
+from typing import Any, Dict
 from unittest.mock import MagicMock, patch
-from typing import Dict, Any
 
 from evaluator.llms.vertexai_llm import VertexAILLM
 

@@ -1,6 +1,6 @@
 """Tests for the Ragas evaluator implementation."""
 
-from typing import Dict, List, Any
+from typing import Any
 
 import pandas as pd
 import pytest
