@@ -1,5 +1,7 @@
 """Tests for the Ragas evaluator implementation."""
 
+from typing import Dict, List, Any
+
 import pandas as pd
 import pytest
 
@@ -8,7 +10,7 @@ from evaluator.ragas_evaluator import RagasEvaluator
 
 
 class MockLLM:
-    def __init__(self):
+    def __init__(self) -> None:
         self.model_name = "mock-model"
 
     def invoke(self, prompt: str) -> str:
@@ -22,7 +24,7 @@ class MockLLM:
 
 
 @pytest.fixture
-def sample_df():
+def sample_df() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "question": ["What is the capital of France?", "What is 2+2?"],
@@ -37,43 +39,43 @@ def sample_df():
 
 
 @pytest.fixture
-def mock_llm():
+def mock_llm() -> MockLLM:
     return MockLLM()
 
 
 @pytest.fixture
-def ragas_evaluator():
+def ragas_evaluator() -> RagasEvaluator:
     return RagasEvaluator(llm=None)  # Explicitly set llm to None for testing
 
 
-def test_initialization_with_defaults():
+def test_initialization_with_defaults() -> None:
     evaluator = RagasEvaluator()  # Let it use default llm
     assert evaluator.metrics == evaluator.default_metrics()
 
 
-def test_initialization_with_custom_metrics():
+def test_initialization_with_custom_metrics() -> None:
     custom_metrics = ["answer_relevancy", "context_recall"]
     evaluator = RagasEvaluator(metrics=custom_metrics, llm=None)
     assert evaluator.metrics == custom_metrics
 
 
-def test_initialization_with_llm(mock_llm):
+def test_initialization_with_llm(mock_llm: MockLLM) -> None:
     evaluator = RagasEvaluator(llm=mock_llm)
     assert evaluator.llm is not None
     assert evaluator.metrics == evaluator.default_metrics()
 
 
-def test_initialization_validation():
+def test_initialization_validation() -> None:
     with pytest.raises(ValueError, match="Unsupported metrics"):
         RagasEvaluator(metrics=["invalid_metric"], llm=None)
 
 
-def test_single_metric_initialization():
-    evaluator = RagasEvaluator(metrics="answer_relevancy", llm=None)
+def test_single_metric_initialization() -> None:
+    evaluator = RagasEvaluator(metrics=["answer_relevancy"], llm=None)
     assert evaluator.metrics == ["answer_relevancy"]
 
 
-def test_supported_metrics(ragas_evaluator):
+def test_supported_metrics(ragas_evaluator: RagasEvaluator) -> None:
     supported = ragas_evaluator.supported_metrics()
     assert isinstance(supported, list)
     assert len(supported) > 0
@@ -81,7 +83,7 @@ def test_supported_metrics(ragas_evaluator):
     assert "context_recall" in supported
 
 
-def test_evaluation_basic(ragas_evaluator, sample_df):
+def test_evaluation_basic(ragas_evaluator: RagasEvaluator, sample_df: pd.DataFrame) -> None:
     results = ragas_evaluator.evaluate(sample_df)
 
     assert len(results) == len(sample_df)
@@ -96,7 +98,7 @@ def test_evaluation_basic(ragas_evaluator, sample_df):
             assert result.threshold > 0
 
 
-def test_evaluation_with_missing_context():
+def test_evaluation_with_missing_context() -> None:
     evaluator = RagasEvaluator(metrics=["answer_relevancy"], llm=None)
     df = pd.DataFrame(
         {
@@ -110,37 +112,7 @@ def test_evaluation_with_missing_context():
         evaluator.evaluate(df)
 
 
-# def test_evaluation_with_empty_dataframe(ragas_evaluator):
-#     df = pd.DataFrame(columns=["question", "answer", "context", "expected_answer"])
-
-#     with pytest.raises(ValueError, match="No data to evaluate"):
-#         ragas_evaluator.evaluate(df)
-
-
-# def test_evaluation_with_thresholds():
-#     thresholds = {
-#         "answer_relevancy": 0.8,
-#         "context_recall": 0.9
-#     }
-#     evaluator = RagasEvaluator(
-#         metrics=list(thresholds.keys()),
-#         threshold=thresholds,  # Changed to threshold
-#         llm=None
-#     )
-
-#     df = pd.DataFrame({
-#         "question": ["What is Python?"],
-#         "answer": ["Python is a programming language."],
-#         "context": ["Python is a high-level programming language."],
-#         "expected_answer": ["A programming language"]
-#     })
-
-#     results = evaluator.evaluate(df)
-#     for result in results[0]:
-#         assert result.threshold == thresholds[result.metric_name]
-
-
-def test_batch_evaluation(ragas_evaluator):
+def test_batch_evaluation(ragas_evaluator: RagasEvaluator) -> None:
     large_df = pd.DataFrame(
         {
             "question": ["Q" + str(i) for i in range(10)],
@@ -154,7 +126,7 @@ def test_batch_evaluation(ragas_evaluator):
     assert len(results) == len(large_df)
 
 
-def test_metric_dependencies():
+def test_metric_dependencies() -> None:
     evaluator = RagasEvaluator(metrics=["context_recall"], llm=None)
     df = pd.DataFrame(
         {
@@ -166,3 +138,12 @@ def test_metric_dependencies():
 
     with pytest.raises(ValueError, match="Missing required columns"):
         evaluator.evaluate(df)
+
+
+def test_evaluator_with_invalid_metric(mock_vertex: Any) -> None:
+    """Test evaluator with invalid metric."""
+    with pytest.raises(ValueError):
+        RagasEvaluator(metrics=["invalid_metric"])
+
+    with pytest.raises(ValueError):
+        RagasEvaluator(metrics=["answer_relevancy", "invalid_metric"])

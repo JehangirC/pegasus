@@ -1,7 +1,7 @@
 """Configuration schemas and loading utilities."""
 
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Callable
 
 from pydantic import BaseModel, Field, validator
 
@@ -10,7 +10,7 @@ class ModelConfig(BaseModel):
     """Configuration for a Vertex AI model."""
 
     name: str
-    config: Optional[Dict[str, Union[float, int]]] = Field(default_factory=dict)
+    config: Optional[Dict[str, Union[float, int]]] = Field(default_factory=lambda: {})
 
 
 class VertexAIConfig(BaseModel):
@@ -73,19 +73,19 @@ class ErrorHandlingConfig(BaseModel):
     timeout: int = 30
 
     @validator("max_retries")
-    def validate_max_retries(cls, v):
+    def validate_max_retries(cls, v: int) -> int:
         if v < 0:
             raise ValueError("max_retries must be non-negative")
         return v
 
     @validator("retry_delay")
-    def validate_retry_delay(cls, v):
+    def validate_retry_delay(cls, v: float) -> float:
         if v <= 0:
             raise ValueError("retry_delay must be positive")
         return v
 
     @validator("timeout")
-    def validate_timeout(cls, v):
+    def validate_timeout(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("timeout must be positive")
         return v

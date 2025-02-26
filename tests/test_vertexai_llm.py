@@ -2,13 +2,14 @@
 
 import unittest
 from unittest.mock import MagicMock, patch
+from typing import Dict, Any
 
 from evaluator.llms.vertexai_llm import VertexAILLM
 
 
 class TestVertexAILLM(unittest.TestCase):
-    def setUp(self):
-        self.default_config = {
+    def setUp(self) -> None:
+        self.default_config: Dict[str, str] = {
             "model_name": "gemini-1.0-pro",  # Use a valid model name
             "project_id": "test-project",
             "location": "us-central1",  # Use a valid location
@@ -16,7 +17,7 @@ class TestVertexAILLM(unittest.TestCase):
 
     @patch("evaluator.llms.vertexai_llm.vertexai.init")
     @patch("evaluator.llms.vertexai_llm.GenerativeModel")
-    def test_initialization_success(self, mock_generative_model, mock_init):
+    def test_initialization_success(self, mock_generative_model: MagicMock, mock_init: MagicMock) -> None:
         llm = VertexAILLM(**self.default_config)
         mock_init.assert_called_once_with(
             project=self.default_config["project_id"],
@@ -26,7 +27,7 @@ class TestVertexAILLM(unittest.TestCase):
 
     @patch("evaluator.llms.vertexai_llm.vertexai.init")
     @patch("evaluator.llms.vertexai_llm.GenerativeModel")
-    def test_generate_success(self, mock_generative_model, mock_init):
+    def test_generate_success(self, mock_generative_model: MagicMock, mock_init: MagicMock) -> None:
         mock_response = MagicMock()
         mock_response.text = "This is a test response."
         mock_generative_model.return_value.generate_content.return_value = mock_response
@@ -41,13 +42,13 @@ class TestVertexAILLM(unittest.TestCase):
 
     @patch("evaluator.llms.vertexai_llm.vertexai.init")
     @patch("evaluator.llms.vertexai_llm.GenerativeModel")
-    def test_generate_with_parameters(self, mock_generative_model, mock_init):
+    def test_generate_with_parameters(self, mock_generative_model: MagicMock, mock_init: MagicMock) -> None:
         mock_response = MagicMock()
         mock_response.text = "This is a test response."
         mock_generative_model.return_value.generate_content.return_value = mock_response
 
         llm = VertexAILLM(**self.default_config)
-        generation_params = {
+        generation_params: Dict[str, Any] = {
             "temperature": 0.7,
             "max_output_tokens": 200,
             "top_p": 0.8,

@@ -1,7 +1,7 @@
 """Evaluator implementation using DeepEval metrics."""
 
 import warnings
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 
 import pandas as pd
 from deepeval.metrics import (
@@ -41,21 +41,21 @@ _SUPPORTED_METRICS = {
 class GoogleVertexAIDeepEval(DeepEvalBaseLLM):
     """Adapter for using Google Vertex AI with DeepEval."""
 
-    def __init__(self, model: ChatVertexAI):
+    def __init__(self, model: ChatVertexAI) -> None:
         self.model = model
 
-    def load_model(self):
+    def load_model(self) -> ChatVertexAI:
         return self.model
 
     async def a_generate(self, prompt: str) -> str:
         chat_model = self.load_model()
         res = await chat_model.ainvoke(prompt)
-        return res.content
+        return str(res.content)
 
     def generate(self, prompt: str) -> str:
         """Generate response from the model."""
         response = self.model.invoke(prompt)
-        return response.content
+        return str(response.content)
 
     def get_model_name(self) -> str:
         """Get name of the model."""
@@ -65,8 +65,13 @@ class GoogleVertexAIDeepEval(DeepEvalBaseLLM):
 class DeepEvalEvaluator(BaseEvaluator):
     """Evaluator using the DeepEval library."""
 
-    def __init__(self, metrics: List[str] = None, threshold: float = None, llm=None):
-        super().__init__(metrics, threshold)
+    def __init__(
+        self, 
+        metrics: Optional[List[str]] = None, 
+        threshold: Optional[float] = None, 
+        llm: Optional[Any] = None
+    ) -> None:
+        super().__init__(metrics, threshold if threshold is not None else 0.5)
         self.validate_metrics(self.metrics)
 
         if llm is None:
@@ -78,9 +83,9 @@ class DeepEvalEvaluator(BaseEvaluator):
             )
 
         self.llm = GoogleVertexAIDeepEval(llm)
-
+        self.deepeval_metrics: List[Any] = []
+        
         # Initialize metrics
-        self.deepeval_metrics = []
         for metric in self.metrics:
             if metric not in _SUPPORTED_METRICS:
                 continue
@@ -90,7 +95,7 @@ class DeepEvalEvaluator(BaseEvaluator):
                 MetricClass(threshold=threshold, model=self.llm, async_mode=False)
             )
 
-    def validate_metrics(self, metrics: List[str]) -> None:
+    def validate_metrics(self, metrics: Optional[List[str]]) -> None:
         """Validates that provided metrics are supported."""
         if not metrics:
             self.metrics = self.default_metrics()
@@ -104,7 +109,7 @@ class DeepEvalEvaluator(BaseEvaluator):
 
     def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
         """Evaluates inputs using DeepEval metrics."""
-        evaluation_results = {}
+        evaluation_results: Dict[str, List[EvaluationResult]] = {}
 
         # Create mapping of metric class names to supported metric names
         metric_name_map = {
@@ -124,7 +129,7 @@ class DeepEvalEvaluator(BaseEvaluator):
             )
 
             # Evaluate with each metric
-            row_results = []
+            row_results: List[EvaluationResult] = []
             for metric in self.deepeval_metrics:
                 try:
                     metric.measure(test_case)
@@ -162,7 +167,7 @@ class DeepEvalEvaluator(BaseEvaluator):
                         )
                     )
 
-            evaluation_results[idx] = row_results
+            evaluation_results[str(idx)] = row_results
 
         return evaluation_results
 

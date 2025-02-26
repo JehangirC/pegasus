@@ -19,6 +19,7 @@ dependencies = [
     "google-auth>=2.38.0",
     "vertexai>=1.43.0",
     "rich>=13.9.4",
+    "pandas-stubs>=2.2.2.240807",
 ]
 
 [project.optional-dependencies]

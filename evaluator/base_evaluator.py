@@ -1,7 +1,7 @@
 """Base evaluator class for LLM evaluation."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from pydantic import BaseModel, field_validator
@@ -16,16 +16,14 @@ class EvaluationResult(BaseModel):
     threshold: float = 0.5
 
 
-class EvaluationInput(BaseModel):  # Pydantic classes for type checking input and output
+class EvaluationInput(BaseModel):
     question: str
     answer: str
-    context: Union[
-        str, List[str]
-    ]  # can be a string or list of strings, depending on your Ragas setup.
-    expected_answer: str = ""  # Optional:  For metrics that need a ground truth.
+    context: Union[str, List[str]]
+    expected_answer: str = ""
 
     @field_validator("context")
-    def context_must_be_valid(cls, v):
+    def context_must_be_valid(cls, v: Union[str, List[str]]) -> Union[str, List[str]]:
         if isinstance(v, list):
             if not all(isinstance(item, str) for item in v):
                 raise ValueError("All items in context must be strings if it is a list")
@@ -37,12 +35,12 @@ class EvaluationInput(BaseModel):  # Pydantic classes for type checking input an
 class BaseEvaluator(ABC):
     """Abstract base class for all evaluators."""
 
-    def __init__(self, metrics: Union[str, List[str]] = None, threshold: float = 0.5):
+    def __init__(self, metrics: Optional[Union[str, List[str]]] = None, threshold: float = 0.5) -> None:
         self.threshold = threshold
         # Convert single metric to list
         if isinstance(metrics, str):
             metrics = [metrics]
-        self.metrics = metrics or self.default_metrics()
+        self.metrics: List[str] = metrics or self.default_metrics()
 
     @abstractmethod
     def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
@@ -71,7 +69,14 @@ class BaseEvaluator(ABC):
         pass
 
     def validate_metrics(self, metrics: List[str]) -> None:
-        """Validates that the requested metrics are supported."""
+        """Validates that the requested metrics are supported.
+        
+        Args:
+            metrics: List of metric names to validate
+            
+        Raises:
+            ValueError: If any metric is not supported
+        """
         supported = self.supported_metrics()
         for metric in metrics:
             if metric not in supported:

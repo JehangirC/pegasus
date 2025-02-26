@@ -2,7 +2,7 @@
 
 import logging
 import warnings
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 
 import grpc
 import pandas as pd
@@ -54,12 +54,12 @@ class RagasEvaluator(BaseEvaluator):
 
     def __init__(
         self,
-        metrics: List[str] = None,
-        threshold: float = None,
-        llm=None,
-        column_mapping: Dict[str, str] = None,
-    ):
-        super().__init__(metrics, threshold)
+        metrics: Optional[List[str]] = None,
+        threshold: Optional[float] = None,
+        llm: Optional[Any] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
+    ) -> None:
+        super().__init__(metrics, threshold if threshold is not None else 0.5)
         self.validate_metrics(self.metrics)
         self.column_mapping = column_mapping or self.DEFAULT_COLUMN_MAPPING
 
@@ -85,7 +85,7 @@ class RagasEvaluator(BaseEvaluator):
             grpc.aio.shutdown_asyncio_engine()
             raise e
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Ensure proper cleanup of gRPC resources."""
         try:
             grpc.aio.shutdown_asyncio_engine()
@@ -107,7 +107,7 @@ class RagasEvaluator(BaseEvaluator):
 
     def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
         """Evaluates inputs using Ragas metrics."""
-        evaluation_results = {}
+        evaluation_results: Dict[str, List[EvaluationResult]] = {}
 
         # Map columns to expected names
         df_mapped = df.copy()
@@ -159,7 +159,7 @@ class RagasEvaluator(BaseEvaluator):
                             reason=f"Score {'meets' if score >= threshold else 'below'} threshold",
                         )
                     )
-                evaluation_results[idx] = row_results
+                evaluation_results[str(idx)] = row_results
 
         except Exception as e:
             import traceback
@@ -167,7 +167,7 @@ class RagasEvaluator(BaseEvaluator):
             error_msg = f"Evaluation failed: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)  # Print the full error for debugging
             for idx in range(len(df)):
-                evaluation_results[idx] = [
+                evaluation_results[str(idx)] = [
                     EvaluationResult(
                         metric_name=metric_name,
                         score=0.0,

@@ -1,6 +1,7 @@
 """Vertex AI LLM implementation."""
 
 import logging
+from typing import Any, Dict, Optional
 
 import vertexai
 from deepeval.models import DeepEvalBaseLLM
@@ -20,11 +21,11 @@ class VertexAILLM(BaseLLM):
 
     def __init__(
         self,
-        model_name: str = None,
-        project_id: str = None,
-        location: str = None,
-        **kwargs,
-    ):
+        model_name: Optional[str] = None,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Initializes the VertexAILLM.
 
@@ -38,10 +39,10 @@ class VertexAILLM(BaseLLM):
         self.project_id = project_id or PROJECT_ID
         self.location = location or LOCATION
         self.model_name = model_name or VERTEX_MODELS["llm"]["name"]
-        self.kwargs = kwargs
+        self.kwargs: Dict[str, Any] = kwargs
         self._initialize_vertex_ai()
 
-    def _initialize_vertex_ai(self):
+    def _initialize_vertex_ai(self) -> None:
         """Initializes the Vertex AI client."""
         try:
             vertexai.init(project=self.project_id, location=self.location)
@@ -51,27 +52,34 @@ class VertexAILLM(BaseLLM):
         except Exception as e:
             logging.error(f"Failed to initialize Vertex AI: {e}")
             raise ValueError(
-                "Failed to initialize Vertex AI. Ensure your project ID and location are correct, and that you have the necessary permissions.  See the logs for details."
+                "Failed to initialize Vertex AI. Ensure your project ID and location are correct, and that you have the necessary permissions. See the logs for details."
             ) from e
 
-    def generate(self, prompt: str, **kwargs) -> str:
+    def generate(self, prompt: str, **kwargs: Any) -> str:
         """Generates text from the Vertex AI model."""
         try:
             # Combine instance kwargs with method kwargs
             all_kwargs = {**self.kwargs, **kwargs}
             response = self.model.generate_content(prompt, **all_kwargs)
             logging.info("Text generated successfully using Vertex AI.")
-            return response.text
+            return str(response.text)  # Explicitly convert to str
         except Exception as e:
-            logging.error(
-                f"Error during text generation with Vertex AI: {e}"
-            )  # Log exception, very important.
-            raise  # Re-raise the exception to stop execution.
+            logging.error(f"Error during text generation with Vertex AI: {e}")
+            raise
+
+    async def a_generate(self, prompt: str) -> str:
+        """Generates text from the Vertex AI model asynchronously."""
+        try:
+            # Currently Vertex AI doesn't have native async support, so we'll use sync method
+            return self.generate(prompt)
+        except Exception as e:
+            logging.error(f"Error during async text generation with Vertex AI: {e}")
+            raise
 
     def get_model_name(self) -> str:
         return self.model_name
 
-    def set_run_config(self, run_config):
+    def set_run_config(self, run_config: Dict[str, Any]) -> None:
         """
         Sets the run configuration for the LLM.
 
@@ -79,17 +87,14 @@ class VertexAILLM(BaseLLM):
             run_config: The run configuration to set.
         """
         self.run_config = run_config
-        # You might need to do something with the run_config here,
-        # depending on how ragas uses it.  For example, you might
-        # want to store it as an instance variable.
         logging.info("Run config set")
 
 
 class VertexAIDeepEvalWrapper(DeepEvalBaseLLM):
-    def __init__(self, vertex_ai_llm):
+    def __init__(self, vertex_ai_llm: VertexAILLM) -> None:
         self.vertex_ai_llm = vertex_ai_llm
 
-    def load_model(self):
+    def load_model(self) -> VertexAILLM:
         return self.vertex_ai_llm
 
     def generate(self, prompt: str) -> str:
@@ -98,5 +103,5 @@ class VertexAIDeepEvalWrapper(DeepEvalBaseLLM):
     async def a_generate(self, prompt: str) -> str:
         return await self.vertex_ai_llm.a_generate(prompt)
 
-    def get_model_name(self):
+    def get_model_name(self) -> str:
         return self.vertex_ai_llm.get_model_name()

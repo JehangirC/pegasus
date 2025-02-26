@@ -1,7 +1,7 @@
 """Main interface for LLM evaluation."""
 
 import logging
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import grpc
 import pandas as pd
@@ -17,7 +17,7 @@ from rich.progress import (
 from rich.table import Table
 from rich.text import Text
 
-from evaluator.base_evaluator import EvaluationResult
+from evaluator.base_evaluator import BaseEvaluator, EvaluationResult
 from evaluator.config import get_metric_threshold
 from evaluator.deepeval_evaluator import DeepEvalEvaluator
 from evaluator.ragas_evaluator import RagasEvaluator
@@ -33,19 +33,18 @@ class LLMEvaluator:
     def __init__(
         self,
         evaluator_type: str = "ragas",
-        metrics: List[str] = None,
+        metrics: Optional[List[str]] = None,
         threshold: float = 0.0,
-    ):
+    ) -> None:
         """Initialize an LLM evaluator.
 
         Args:
             evaluator_type: Type of evaluator to use ('ragas' or 'deepeval')
             metrics: List of metrics to evaluate
             threshold: Overall threshold for pass/fail
-            column_mapping: Dictionary mapping required column names to input column names
         """
         if evaluator_type == "ragas":
-            self.evaluator = RagasEvaluator(metrics=metrics, threshold=threshold)
+            self.evaluator: BaseEvaluator = RagasEvaluator(metrics=metrics, threshold=threshold)
         elif evaluator_type == "deepeval":
             self.evaluator = DeepEvalEvaluator(metrics=metrics, threshold=threshold)
         else:
@@ -96,7 +95,7 @@ class LLMEvaluator:
         self,
         results: Dict[str, List[EvaluationResult]],
         title: str = "Evaluation Results",
-    ):
+    ) -> None:
         """Display evaluation results using rich formatting.
 
         Args:
@@ -113,7 +112,7 @@ class LLMEvaluator:
         inverse_metrics = ["bias", "toxicity"]
 
         # Calculate average scores for each metric
-        metric_scores = {}
+        metric_scores: Dict[str, List[float]] = {}
         for example_results in results.values():
             for result in example_results:
                 if result.metric_name not in metric_scores:

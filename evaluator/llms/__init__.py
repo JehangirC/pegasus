@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class BaseLLM(ABC):
     """Abstract base class for all LLM wrappers."""
 
     @abstractmethod
-    def generate(self, prompt: str, **kwargs) -> str:
+    def generate(self, prompt: str, **kwargs: Any) -> str:
         """
         Generates text from the LLM based on the given prompt.
 
