@@ -1,4 +1,5 @@
 """Vertex AI LLM implementation."""
+
 from typing import Any, Dict, List, Optional
 import google.auth
 import google.auth.transport.requests
@@ -11,13 +12,21 @@ import logging
 from deepeval.models import DeepEvalBaseLLM
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class VertexAILLM(BaseLLM):
     """Wrapper for Vertex AI Generative Models."""
 
-    def __init__(self, model_name: str = None, project_id: str = None, location: str = None, **kwargs):
+    def __init__(
+        self,
+        model_name: str = None,
+        project_id: str = None,
+        location: str = None,
+        **kwargs,
+    ):
         """
         Initializes the VertexAILLM.
 
@@ -38,10 +47,14 @@ class VertexAILLM(BaseLLM):
         """Initializes the Vertex AI client."""
         try:
             vertexai.init(project=self.project_id, location=self.location)
-            self.model = GenerativeModel(self.model_name, **self.kwargs)  # pass all kwargs to the model
+            self.model = GenerativeModel(
+                self.model_name, **self.kwargs
+            )  # pass all kwargs to the model
         except Exception as e:
             logging.error(f"Failed to initialize Vertex AI: {e}")
-            raise ValueError(f"Failed to initialize Vertex AI. Ensure your project ID and location are correct, and that you have the necessary permissions.  See the logs for details.") from e
+            raise ValueError(
+                f"Failed to initialize Vertex AI. Ensure your project ID and location are correct, and that you have the necessary permissions.  See the logs for details."
+            ) from e
 
     def generate(self, prompt: str, **kwargs) -> str:
         """Generates text from the Vertex AI model."""
@@ -52,7 +65,9 @@ class VertexAILLM(BaseLLM):
             logging.info("Text generated successfully using Vertex AI.")
             return response.text
         except Exception as e:
-            logging.error(f"Error during text generation with Vertex AI: {e}")  # Log exception, very important.
+            logging.error(
+                f"Error during text generation with Vertex AI: {e}"
+            )  # Log exception, very important.
             raise  # Re-raise the exception to stop execution.
 
     def get_model_name(self) -> str:

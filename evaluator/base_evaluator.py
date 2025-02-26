@@ -1,9 +1,11 @@
 """Base evaluator class for LLM evaluation."""
+
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Union
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 import pandas as pd
+
 
 class EvaluationResult(BaseModel):
     metric_name: str
@@ -13,11 +15,14 @@ class EvaluationResult(BaseModel):
     passed: bool = False
     threshold: float = 0.5
 
-class EvaluationInput(BaseModel): # Pydantic classes for type checking input and output
+
+class EvaluationInput(BaseModel):  # Pydantic classes for type checking input and output
     question: str
     answer: str
-    context:  Union[str, List[str]] # can be a string or list of strings, depending on your Ragas setup.
-    expected_answer: str = ""   # Optional:  For metrics that need a ground truth.
+    context: Union[
+        str, List[str]
+    ]  # can be a string or list of strings, depending on your Ragas setup.
+    expected_answer: str = ""  # Optional:  For metrics that need a ground truth.
 
     @field_validator("context")
     def context_must_be_valid(cls, v):
@@ -28,16 +33,17 @@ class EvaluationInput(BaseModel): # Pydantic classes for type checking input and
             raise ValueError("context must be a string or a list of strings")
         return v
 
+
 class BaseEvaluator(ABC):
     """Abstract base class for all evaluators."""
-    
+
     def __init__(self, metrics: Union[str, List[str]] = None, threshold: float = 0.5):
         self.threshold = threshold
         # Convert single metric to list
         if isinstance(metrics, str):
             metrics = [metrics]
         self.metrics = metrics or self.default_metrics()
-        
+
     @abstractmethod
     def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
         """Evaluates a dataframe of inputs and returns scores.

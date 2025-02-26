@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
+
 class BaseLLM(ABC):
     """Abstract base class for all LLM wrappers."""
 
@@ -20,5 +21,5 @@ class BaseLLM(ABC):
         pass
 
     @abstractmethod
-    def get_model_name(self) ->str:
-      """returns the model name"""
+    def get_model_name(self) -> str:
+        """returns the model name"""
