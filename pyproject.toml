@@ -1,5 +1,5 @@
 [project]
-name = "pegasus"
+name = "llm_evaluator"  # Renamed from "pegasus" to match directory name and avoid conflicts
 version = "0.1.0"
 description = "A powerful evaluation framework for Large Language Models using RAGAS and DeepEval"
 authors = []
@@ -65,7 +65,7 @@ line-length = 88
 target-version = "py38"
 
 [tool.hatch.build.targets.wheel]
-packages = [".", "evaluator"]
+packages = ["evaluator"]  # Updated to only include the evaluator package
 
 [dependency-groups]
 dev = [
