@@ -1,5 +1,4 @@
 """Main interface for LLM evaluation."""
-
 import logging
 from typing import Dict, List, Optional, Union
 
@@ -13,6 +12,7 @@ from rich.progress import (
     SpinnerColumn,
     TaskProgressColumn,
     TextColumn,
+    TimeRemainingColumn,
 )
 from rich.table import Table
 from rich.text import Text
@@ -69,19 +69,66 @@ class LLMEvaluator:
         else:
             df = data.copy()
 
-        console.print()
-        console.print()  # Add extra blank lines before progress
+        # Create a progress display that works in both terminal and notebooks
+        console.print()  # Add blank line before progress
+
+        # Determine number of steps based on evaluator type and metrics count
+        num_metrics = len(self.evaluator.metrics)
+        num_examples = len(df)
+        total_steps = num_metrics * num_examples
+
+        # Create a progress bar with better timing information
         with Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             TaskProgressColumn(),
+            TimeRemainingColumn(),
             SpinnerColumn(),
             console=console,
-            transient=False,  # This ensures the progress bar stays visible
+            refresh_per_second=5,  # Lower refresh rate for better notebook compatibility
+            transient=False,  # Ensures the progress bar stays visible
+            expand=True,  # Use full width
         ) as progress:
-            task = progress.add_task("[cyan]Evaluating...", total=1)
-            results = self.evaluator.evaluate(df)
-            progress.update(task, advance=1, description="[green]Evaluation complete")
+            main_task = progress.add_task(
+                f"[cyan]Running {self.evaluator.__class__.__name__} evaluation...",
+                total=total_steps,
+            )
+
+            # Create a wrapper for the evaluator that updates progress
+            # For DeepEval, we'll manually update per metric since it processes each metric separately
+            if isinstance(self.evaluator, DeepEvalEvaluator):
+                # Create a dictionary to store results
+                evaluation_results: Dict[str, List[EvaluationResult]] = {}
+
+                # Process each example and update progress manually
+                for idx, row in df.iterrows():
+                    # Format a sub-task description that shows which example is being processed
+                    progress.update(
+                        main_task,
+                        description=f"[cyan]Evaluating example {int(idx)+1}/{num_examples}",
+                    )
+
+                    # Let the actual evaluator process this example
+                    results = self.evaluator.evaluate(pd.DataFrame([row]))
+
+                    # Store results
+                    evaluation_results[str(idx)] = results.get("0", [])
+
+                    # Update progress based on metrics count
+                    progress.update(main_task, advance=num_metrics)
+
+                results = evaluation_results
+            else:
+                # For Ragas, we update once at the end as it processes all at once
+                progress.update(
+                    main_task, description="[cyan]Running Ragas evaluation..."
+                )
+                results = self.evaluator.evaluate(df)
+                progress.update(main_task, completed=total_steps)
+
+            # Complete the progress bar but without a final message that might clash with DeepEval output
+            progress.update(main_task, completed=total_steps)
+
             console.print()  # Add blank line after progress
             return results
 
@@ -92,13 +139,14 @@ class LLMEvaluator:
     def get_default_metrics(self) -> List[str]:
         """Get default metrics for the current evaluator."""
         return self.evaluator.default_metrics()
-    def to_df(self, df):
+
+    def to_df(self, results: Dict[str, List[EvaluationResult]]) -> pd.DataFrame:
         """
-        Aggregate RAGAS evaluation results with metrics as columns.
+        Aggregate evaluation results with metrics as columns.
 
         Parameters:
         -----------
-        ragas_results : dict
+        results : dict
             Dictionary of evaluation results where keys are IDs and values are lists of result objects.
 
         Returns:
@@ -109,38 +157,42 @@ class LLMEvaluator:
         # Create a dictionary to store aggregated scores by metric
         metric_scores = {}
 
-        for key, eval_results in df.items():
+        for _key, eval_results in results.items():
             for result in eval_results:
                 metric_name = result.metric_name
                 score = result.score
 
                 if metric_name not in metric_scores:
                     metric_scores[metric_name] = {
-                        'total_score': 0,
-                        'count': 0,
-                        'passed': 0,
-                        'threshold': result.threshold,
-                        'explanation': result.explanation
+                        "total_score": 0.0,
+                        "count": 0,
+                        "passed": 0,
+                        "threshold": result.threshold,
+                        "explanation": result.explanation,
                     }
 
-                metric_scores[metric_name]['total_score'] += score
-                metric_scores[metric_name]['count'] += 1
+                # Convert score to float explicitly to avoid type errors
+                metric_scores[metric_name]["total_score"] += float(score)  # type: ignore[operator]
+                metric_scores[metric_name]["count"] += 1
                 if result.passed:
-                    metric_scores[metric_name]['passed'] += 1
+                    metric_scores[metric_name]["passed"] += 1
 
         # Calculate averages and create the DataFrame
-        avg_data = {'Metric': 'Average Across All IDs'}
+        avg_data = {"Metric": "Average Across All IDs"}
 
         for metric, stats in metric_scores.items():
-            avg_score = stats['total_score'] / stats['count']
-            avg_data[metric] = round(avg_score, 3)
+            # Ensure we're working with float values for division
+            total_score = float(stats["total_score"])  # type: ignore[arg-type]
+            count = float(stats["count"])  # type: ignore[arg-type]
+            avg_score = total_score / count if count > 0 else 0.0
+            avg_data[metric] = round(avg_score, 3)  # type: ignore[assignment]
             # You could also include pass rate if needed
             # avg_data[f"{metric}_pass_rate"] = stats['passed'] / stats['count']
 
         df_avg = pd.DataFrame([avg_data])
 
         # Set 'Metric' as the index for better display
-        df_avg = df_avg.set_index('Metric')
+        df_avg = df_avg.set_index("Metric")
 
         return df_avg
 
@@ -174,7 +226,9 @@ class LLMEvaluator:
 
         # Add rows to table
         for metric, scores in metric_scores.items():
-            avg_score = sum(scores) / len(scores)
+            # Ensure we're working with float values for calculations
+            float_scores = [float(score) for score in scores]
+            avg_score = sum(float_scores) / len(float_scores) if float_scores else 0.0
             evaluator_type = (
                 "ragas" if isinstance(self.evaluator, RagasEvaluator) else "deepeval"
             )

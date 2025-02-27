@@ -1,6 +1,6 @@
 {
     "vertex_ai": {
-        "project_id": "playpen-01a198",
+        "project_id": "testing-ragas",
         "location": "europe-west1",
         "models": {
             "llm": {

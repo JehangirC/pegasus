@@ -5,10 +5,10 @@ description = "A powerful evaluation framework for Large Language Models using R
 authors = []
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "ragas>=0.0.22",
-    "deepeval==2.4.5",
+    "deepeval==2.4.6",
     "langchain-google-vertexai",
     "pandas>=2.0.0",
     "google-cloud-aiplatform>=1.38.1",
@@ -21,8 +21,8 @@ dependencies = [
     "rich>=13.9.4",
     "pandas-stubs>=2.2.2.240807",
     "pre-commit>=4.1.0",
-    "grpcio>=1.70.0",  # Pin gRPC version for Python 3.12 compatibility
-    "grpcio-tools>=1.70.0",  # Pin gRPC tools version
+    "grpcio>=1.70.0", # Pin gRPC version for Python 3.12 compatibility
+    "grpcio-tools>=1.70.0", # Pin gRPC tools version
 ]
 
 [project.optional-dependencies]
@@ -50,8 +50,6 @@ include = '\.pyi?$'
 
 [tool.isort]
 profile = "black"
-multi_line_output = 3
-line-length = 88
 
 [tool.mypy]
 python_version = "3.12"  # Updated to match your mypy.ini

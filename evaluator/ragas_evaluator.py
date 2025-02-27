@@ -1,8 +1,9 @@
 """Evaluator implementation using Ragas metrics."""
 
+import asyncio
 import logging
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import grpc
 import pandas as pd
@@ -31,6 +32,8 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain_core")
 
+# Definition of metrics with their expected behavior
+# Note: For all Ragas metrics, higher scores are better
 _SUPPORTED_METRICS = {
     "answer_relevancy": answer_relevancy,
     "faithfulness": faithfulness,
@@ -105,6 +108,65 @@ class RagasEvaluator(BaseEvaluator):
                 f"Unsupported metrics: {invalid_metrics}. Supported metrics are: {list(_SUPPORTED_METRICS.keys())}"
             )
 
+    def _process_context(self, context: Union[str, List[str]]) -> List[str]:
+        """Process context into expected format."""
+        if isinstance(context, list):
+            return context
+        return [context]
+
+    def _get_detailed_reason(
+        self, metric_name: str, score: float, threshold: float
+    ) -> str:
+        """Get a detailed reason for the evaluation result."""
+        base_reason = f"Score {score:.3f} {'meets' if score >= threshold else 'below'} threshold {threshold:.3f}"
+
+        # Add metric-specific explanations
+        if metric_name == "answer_relevancy":
+            base_reason += "\nMeasures how relevant the answer is to the question."
+        elif metric_name == "faithfulness":
+            base_reason += (
+                "\nMeasures if the answer is faithful to the provided context."
+            )
+        elif metric_name == "context_recall":
+            base_reason += (
+                "\nMeasures if all relevant information was retrieved from the context."
+            )
+        elif metric_name == "context_precision":
+            base_reason += "\nMeasures if the retrieved context contains only relevant information."
+        elif metric_name == "answer_correctness":
+            base_reason += (
+                "\nMeasures if the answer is correct according to the ground truth."
+            )
+
+        return base_reason
+
+    def _create_evaluation_result(
+        self,
+        metric_name: str,
+        score: float,
+        threshold: float,
+        error: Optional[Exception] = None,
+    ) -> EvaluationResult:
+        """Create an evaluation result for a metric."""
+        if error:
+            return EvaluationResult(
+                metric_name=metric_name,
+                score=0.0,
+                passed=False,
+                threshold=threshold,
+                explanation=f"Error evaluating {metric_name}: {type(error).__name__}",
+                reason=f"Evaluation failed: {str(error)}",
+            )
+
+        return EvaluationResult(
+            metric_name=metric_name,
+            score=score,
+            passed=score >= threshold,
+            threshold=threshold,
+            explanation=f"Ragas {metric_name} score: {score:.3f}",
+            reason=self._get_detailed_reason(metric_name, score, threshold),
+        )
+
     def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
         """Evaluates inputs using Ragas metrics."""
         evaluation_results: Dict[str, List[EvaluationResult]] = {}
@@ -148,16 +210,11 @@ class RagasEvaluator(BaseEvaluator):
                 row_results = []
                 for metric_name in self.metrics:
                     score = float(results[metric_name][idx])
-                    threshold = get_metric_threshold(metric_name, "ragas")
+                    threshold = (
+                        get_metric_threshold(metric_name, "ragas") or self.threshold
+                    )
                     row_results.append(
-                        EvaluationResult(
-                            metric_name=metric_name,
-                            score=score,
-                            passed=score >= threshold,
-                            threshold=threshold,
-                            explanation=f"Ragas {metric_name} score: {score:.3f}",
-                            reason=f"Score {'meets' if score >= threshold else 'below'} threshold",
-                        )
+                        self._create_evaluation_result(metric_name, score, threshold)
                     )
                 evaluation_results[str(idx)] = row_results
 
@@ -165,21 +222,35 @@ class RagasEvaluator(BaseEvaluator):
             import traceback
 
             error_msg = f"Evaluation failed: {str(e)}\n{traceback.format_exc()}"
-            print(error_msg)  # Print the full error for debugging
+            logging.error(error_msg)  # Log the error instead of printing
+
             for idx in range(len(df)):
-                evaluation_results[str(idx)] = [
-                    EvaluationResult(
-                        metric_name=metric_name,
-                        score=0.0,
-                        passed=False,
-                        threshold=get_metric_threshold(metric_name, "ragas"),
-                        explanation=f"Error evaluating {metric_name}",
-                        reason=error_msg,
+                row_results = []
+                for metric_name in self.metrics:
+                    threshold = (
+                        get_metric_threshold(metric_name, "ragas") or self.threshold
                     )
-                    for metric_name in self.metrics
-                ]
+                    row_results.append(
+                        self._create_evaluation_result(
+                            metric_name, 0.0, threshold, error=e
+                        )
+                    )
+                evaluation_results[str(idx)] = row_results
 
         return evaluation_results
+
+    async def evaluate_async(
+        self, df: pd.DataFrame
+    ) -> Dict[str, List[EvaluationResult]]:
+        """Evaluates inputs using Ragas metrics asynchronously.
+
+        Note: This is a placeholder implementation since Ragas doesn't support
+        async evaluation directly. This method runs the synchronous evaluate
+        method in an executor to avoid blocking the event loop.
+        """
+        # Use run_in_executor to run the synchronous evaluate method in a thread pool
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.evaluate, df)
 
     def default_metrics(self) -> List[str]:
         """Returns default metrics for Ragas."""

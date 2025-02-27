@@ -1,7 +1,8 @@
 """Evaluator implementation using DeepEval metrics."""
 
+import asyncio
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from deepeval.metrics import (
@@ -107,6 +108,80 @@ class DeepEvalEvaluator(BaseEvaluator):
                 f"Unsupported metrics: {invalid_metrics}. Supported metrics are: {list(_SUPPORTED_METRICS.keys())}"
             )
 
+    def _process_context(self, context: Union[str, List[str], pd.Series]) -> List[str]:
+        """Process context into expected format."""
+        if isinstance(context, list):
+            return context
+        elif isinstance(context, pd.Series):
+            # Convert pandas Series to string or list depending on content
+            if isinstance(context.iloc[0], str):
+                return [str(context.iloc[0])]
+            elif isinstance(context.iloc[0], list):
+                return context.iloc[0]
+            return [str(context)]
+        return [context]
+
+    def _create_test_case(self, row: pd.Series) -> LLMTestCase:
+        """Create a DeepEval test case from a DataFrame row."""
+        context = self._process_context(row["context"])
+        return LLMTestCase(
+            input=row["question"],
+            actual_output=row["answer"],
+            expected_output=row.get("expected_answer", ""),
+            context=context,
+            retrieval_context=context,
+        )
+
+    def _get_detailed_reason(self, metric: Any, score: float, threshold: float) -> str:
+        """Get a detailed reason for the evaluation result."""
+        base_reason = (
+            metric.reason if hasattr(metric, "reason") and metric.reason else ""
+        )
+        if not base_reason:
+            base_reason = f"Score {score:.3f} {'meets' if score >= threshold else 'below'} threshold {threshold:.3f}"
+
+        # Add metric-specific details if available
+        if hasattr(metric, "evaluation_details") and metric.evaluation_details:
+            base_reason += f"\nDetails: {str(metric.evaluation_details)}"
+
+        return base_reason
+
+    def _evaluate_single_metric(
+        self, metric: Any, test_case: LLMTestCase, metric_name: str, threshold: float
+    ) -> EvaluationResult:
+        """Evaluate a single metric and return result."""
+        try:
+            metric.measure(test_case)
+            score = float(metric.score)
+
+            # For bias and toxicity metrics, lower scores are better (below threshold is passing)
+            # For other metrics, higher scores are better (above threshold is passing)
+            if metric_name in ["bias", "toxicity"]:
+                passed = score <= threshold
+            else:
+                passed = score >= threshold
+
+            return EvaluationResult(
+                metric_name=metric_name,
+                score=score,
+                passed=passed,
+                threshold=threshold,
+                explanation=f"DeepEval {metric.__class__.__name__} score: {score:.3f}",
+                reason=self._get_detailed_reason(metric, score, threshold),
+            )
+        except Exception as e:
+            # Provide more specific error handling
+            error_type = type(e).__name__
+            error_message = str(e)
+            return EvaluationResult(
+                metric_name=metric_name,
+                score=0.0,
+                passed=False,
+                threshold=threshold,
+                explanation=f"Error evaluating {metric.__class__.__name__}: {error_type}",
+                reason=f"Evaluation failed: {error_message}",
+            )
+
     def evaluate(self, df: pd.DataFrame) -> Dict[str, List[EvaluationResult]]:
         """Evaluates inputs using DeepEval metrics."""
         evaluation_results: Dict[str, List[EvaluationResult]] = {}
@@ -117,57 +192,71 @@ class DeepEvalEvaluator(BaseEvaluator):
         }
 
         for idx, row in df.iterrows():
-            context = (
-                row["context"] if isinstance(row["context"], list) else [row["context"]]
-            )
-            test_case = LLMTestCase(
-                input=row["question"],
-                actual_output=row["answer"],
-                expected_output=row.get("expected_answer", ""),
-                context=context,
-                retrieval_context=context,
-            )
+            test_case = self._create_test_case(row)
 
             # Evaluate with each metric
             row_results: List[EvaluationResult] = []
             for metric in self.deepeval_metrics:
-                try:
-                    metric.measure(test_case)
-                    score = float(metric.score)
-                    metric_name = metric_name_map[metric.__class__.__name__]
-                    threshold = (
-                        get_metric_threshold(metric_name, "deepeval")
-                        or _SUPPORTED_METRICS[metric_name][1]
-                    )
-                    row_results.append(
-                        EvaluationResult(
-                            metric_name=metric_name,
-                            score=score,
-                            passed=score >= threshold,
-                            threshold=threshold,
-                            explanation=f"DeepEval {metric.__class__.__name__} score: {score:.3f}",
-                            reason=metric.reason
-                            or f"Score {'meets' if score >= threshold else 'below'} threshold",
-                        )
-                    )
-                except Exception as e:
-                    metric_name = metric_name_map[metric.__class__.__name__]
-                    threshold = (
-                        get_metric_threshold(metric_name, "deepeval")
-                        or _SUPPORTED_METRICS[metric_name][1]
-                    )
-                    row_results.append(
-                        EvaluationResult(
-                            metric_name=metric_name,
-                            score=0.0,
-                            passed=False,
-                            threshold=threshold,
-                            explanation=f"Error evaluating {metric.__class__.__name__}",
-                            reason=str(e),
-                        )
-                    )
+                metric_name = metric_name_map[metric.__class__.__name__]
+                threshold = (
+                    get_metric_threshold(metric_name, "deepeval")
+                    or _SUPPORTED_METRICS[metric_name][1]
+                )
+                result = self._evaluate_single_metric(
+                    metric, test_case, metric_name, threshold
+                )
+                row_results.append(result)
 
             evaluation_results[str(idx)] = row_results
+
+        return evaluation_results
+
+    async def evaluate_async(
+        self, df: pd.DataFrame
+    ) -> Dict[str, List[EvaluationResult]]:
+        """Evaluates inputs using DeepEval metrics asynchronously."""
+        evaluation_results: Dict[str, List[EvaluationResult]] = {}
+
+        # Create mapping of metric class names to supported metric names
+        metric_name_map = {
+            cls.__name__: name for name, (cls, _) in _SUPPORTED_METRICS.items()
+        }
+
+        # Process each row
+        async def process_row(
+            idx: int, row: pd.Series
+        ) -> Tuple[str, List[EvaluationResult]]:
+            test_case = self._create_test_case(row)
+            row_results: List[EvaluationResult] = []
+
+            # Create tasks for each metric
+            tasks = []
+            for metric in self.deepeval_metrics:
+                metric_name = metric_name_map[metric.__class__.__name__]
+                threshold = (
+                    get_metric_threshold(metric_name, "deepeval")
+                    or _SUPPORTED_METRICS[metric_name][1]
+                )
+                # Use run_in_executor to run synchronous measure method in a thread pool
+                tasks.append(
+                    self._evaluate_single_metric(
+                        metric, test_case, metric_name, threshold
+                    )
+                )
+
+            # Gather results
+            for result in tasks:
+                row_results.append(result)
+
+            return str(idx), row_results
+
+        # Process rows concurrently
+        tasks = [process_row(idx, row) for idx, row in df.iterrows()]  # type: ignore[arg-type]
+        results = await asyncio.gather(*tasks)
+
+        # Organize results
+        for idx, row_results in results:
+            evaluation_results[idx] = row_results
 
         return evaluation_results
 
