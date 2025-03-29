@@ -13,44 +13,48 @@ jobs:
     name: Code Quality
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-    - name: Install dependencies
-      run: |
-        uv pip install --system -e ".[dev]"
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[dev]"
 
-    - name: Lint with ruff
-      run: |
-        ruff check . --output-format=github
+      - name: Format code with black
+        run: |
+          black .
 
-    - name: Format check with black
-      run: |
-        black . --check
+      - name: Lint with ruff
+        run: |
+          ruff check . --output-format=github
 
-    - name: Cache mypy
-      uses: actions/cache@v3
-      with:
-        path: .mypy_cache
-        key: ${{ runner.os }}-mypy-${{ hashFiles('**/*.py') }}-${{ hashFiles('pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-mypy-
+      - name: Format check with black
+        run: |
+          black . --check
 
-    - name: Type check with mypy
-      run: |
-        mypy --python-version 3.12 \
-          --cache-dir .mypy_cache \
-          --show-error-codes \
-          .
+      - name: Cache mypy
+        uses: actions/cache@v3
+        with:
+          path: .mypy_cache
+          key: ${{ runner.os }}-mypy-${{ hashFiles('**/*.py') }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-mypy-
+
+      - name: Type check with mypy
+        run: |
+          mypy --python-version 3.12 \
+            --cache-dir .mypy_cache \
+            --show-error-codes \
+            .
 
   test:
     name: Test Python ${{ matrix.python-version }}
